@@ -24,6 +24,7 @@ class FileDropZone(ft.Container):
     - Click triggers parent's on_browse callback
     - Green checkmark when file is accepted
     - Shake animation for validation errors
+    - Optional remove (✕) button via on_remove callback
     """
 
     def __init__(
@@ -32,6 +33,7 @@ class FileDropZone(ft.Container):
         zone_key: str,
         icon: str = ft.Icons.UPLOAD_FILE_ROUNDED,
         on_browse=None,
+        on_remove=None,   # if provided, shows a ✕ button in the top-right corner
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -39,6 +41,7 @@ class FileDropZone(ft.Container):
         self.zone_key = zone_key
         self.icon_name = icon
         self._on_browse = on_browse
+        self._on_remove = on_remove
         self.selected_path: str = ""
 
         # State
@@ -85,8 +88,22 @@ class FileDropZone(ft.Container):
             animate_scale=ft.Animation(DURATION_NORMAL, CURVE_DEFAULT),
         )
 
-        # Build container
-        self.content = ft.Column(
+        # Optional remove button (top-right corner)
+        self._remove_btn = ft.Container(
+            content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=14, color=TEXT_MUTED),
+            width=22,
+            height=22,
+            border_radius=11,
+            bgcolor="transparent",
+            alignment=ft.Alignment(0, 0),
+            on_click=self._on_remove_click,
+            on_hover=self._on_remove_hover,
+            visible=on_remove is not None,
+            tooltip="Remove",
+        )
+
+        # Inner column (the drop zone content)
+        self._inner_col = ft.Column(
             controls=[
                 self._icon,
                 self._check_icon,
@@ -97,6 +114,28 @@ class FileDropZone(ft.Container):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
             spacing=SPACING_SM,
+            expand=True,
+        )
+
+        # Stack: inner column (clickable) + remove button (top-right)
+        self.content = ft.Stack(
+            controls=[
+                ft.GestureDetector(
+                    content=ft.Container(
+                        content=self._inner_col,
+                        expand=True,
+                        alignment=ft.Alignment(0, 0),
+                    ),
+                    on_tap=self._on_click,
+                    expand=True,
+                ),
+                ft.Container(
+                    content=self._remove_btn,
+                    alignment=ft.Alignment(1, -1),
+                    padding=ft.padding.only(top=4, right=4),
+                ),
+            ],
+            expand=True,
         )
 
         self.width = 240
@@ -107,7 +146,6 @@ class FileDropZone(ft.Container):
         self.padding = SPACING_MD
         self.alignment = ft.Alignment(0, 0)
         self.animate = ft.Animation(DURATION_NORMAL, CURVE_DEFAULT)
-        self.on_click = self._on_click
         self.on_hover = self._on_hover
 
     def _on_hover(self, e: ft.HoverEvent):
@@ -125,6 +163,23 @@ class FileDropZone(ft.Container):
         """Notify parent to open file picker for this zone."""
         if self._on_browse:
             self._on_browse(self.zone_key)
+
+    def _on_remove_click(self, e):
+        """Notify parent to remove this zone."""
+        if self._on_remove:
+            self._on_remove(self.zone_key)
+
+    def _on_remove_hover(self, e: ft.HoverEvent):
+        hovered = e.data == "true"
+        self._remove_btn.bgcolor = ACCENT_DANGER if hovered else "transparent"
+        icon = self._remove_btn.content
+        icon.color = "#FFFFFF" if hovered else TEXT_MUTED
+        self._remove_btn.update()
+
+    def show_remove_button(self, visible: bool):
+        """Dynamically show or hide the remove button."""
+        self._remove_btn.visible = visible
+        self._remove_btn.update()
 
     def accept_file(self, file_path: str, file_name: str):
         """Called by parent when a file is selected for this zone."""

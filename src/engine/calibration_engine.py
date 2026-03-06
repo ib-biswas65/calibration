@@ -5,13 +5,12 @@ Wraps all engine sub-modules and provides a callback-driven API
 so the Flet UI can display real-time processing logs.
 """
 
-from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 
-from .ref_loader import load_ref1, load_ref2, combine_refs
+from .ref_loader import load_ref_auto, combine_refs
 from .cal_loader import load_workbook, load_calibration_sheet
 from .matcher import TARGETS, find_values_for_target
 from .docx_filler import fill_certificate
@@ -32,17 +31,17 @@ class CalibrationEngine:
         """
         Initialize with configuration dict containing:
             - start_cert_no: int
-            - cert_width: int (zero-pad width)
+            - cert_width: int (zero-pad width, default 10)
             - test_date_jp: str (e.g. "2026年3月4日")
             - doc_date_jp: str
             - template_path: Path or str
             - calibration_xlsx: Path or str
-            - ref1_csv: Path or str
-            - ref2_csv: Path or str
+            - ref_csvs: list[str | Path]  — one or more reference logger CSV paths
             - output_dir: Path or str
             - template_serial: str (placeholder serial in template)
             - template_testdate: str (placeholder test date in template)
             - template_docdate: str (placeholder doc date in template)
+            - template_cert_no: str (placeholder cert number in template, default "0000001644")
             - time_ranges: dict mapping float → (datetime, datetime)
         """
         self.config = config
@@ -52,12 +51,12 @@ class CalibrationEngine:
         self.doc_date_jp = config["doc_date_jp"]
         self.template_path = Path(config["template_path"])
         self.calibration_xlsx = Path(config["calibration_xlsx"])
-        self.ref1_csv = Path(config["ref1_csv"])
-        self.ref2_csv = Path(config["ref2_csv"])
+        self.ref_csvs: List[Path] = [Path(p) for p in config["ref_csvs"]]
         self.output_dir = Path(config["output_dir"])
         self.template_serial = config["template_serial"]
         self.template_testdate = config["template_testdate"]
         self.template_docdate = config["template_docdate"]
+        self.template_cert_no = config.get("template_cert_no", "0000001644")
         self.time_ranges = config["time_ranges"]
 
         # state populated during load_data / process
@@ -74,30 +73,36 @@ class CalibrationEngine:
 
     def load_data(self, callback: Optional[Callable] = None):
         """
-        Load reference loggers and calibration workbook.
+        Load all reference loggers (auto-detecting format) and calibration workbook.
         callback(message: str, level: str) is called for real-time logging.
         """
-        self._log(callback, "Loading reference logger 1...", "info")
-        ref1_df = load_ref1(self.ref1_csv)
+        all_ref_dfs = []
+
+        for i, ref_path in enumerate(self.ref_csvs, start=1):
+            self._log(callback, f"Loading reference logger {i}: {ref_path.name}...", "info")
+            df = load_ref_auto(ref_path)
+            if df.empty:
+                self._log(
+                    callback,
+                    f"  ⚠ WARNING: No data rows found in {ref_path.name}. "
+                    f"Check encoding/format.",
+                    "warning",
+                )
+            else:
+                self._log(
+                    callback,
+                    f"  Ref {i}: {len(df)} readings "
+                    f"({df.timestamp.min()} → {df.timestamp.max()})",
+                    "info",
+                )
+            all_ref_dfs.append(df)
+
+        self.ref_all = combine_refs(all_ref_dfs)
         self._log(
             callback,
-            f"  Ref1: {len(ref1_df)} readings "
-            f"({ref1_df.timestamp.min()} → {ref1_df.timestamp.max()})",
+            f"  Combined: {len(self.ref_all)} reference readings from "
+            f"{len(self.ref_csvs)} file(s)",
             "info",
-        )
-
-        self._log(callback, "Loading reference logger 2...", "info")
-        ref2_df = load_ref2(self.ref2_csv)
-        self._log(
-            callback,
-            f"  Ref2: {len(ref2_df)} readings "
-            f"({ref2_df.timestamp.min()} → {ref2_df.timestamp.max()})",
-            "info",
-        )
-
-        self.ref_all = combine_refs(ref1_df, ref2_df)
-        self._log(
-            callback, f"  Combined: {len(self.ref_all)} readings", "info"
         )
 
         self._log(callback, "\nLoading calibration loggers...", "info")
@@ -125,6 +130,7 @@ class CalibrationEngine:
         total = len(self.sheet_names)
         self._log(callback, f"\n{'=' * 50}", "info")
         self._log(callback, f"GENERATING {total} CERTIFICATES", "info")
+        self._log(callback, f"Output: {self.output_dir.resolve()}", "info")
         self._log(callback, f"{'=' * 50}", "info")
 
         for i, serial in enumerate(self.sheet_names):
@@ -181,6 +187,7 @@ class CalibrationEngine:
                 doc_date_jp=self.doc_date_jp,
                 template_testdate=self.template_testdate,
                 template_docdate=self.template_docdate,
+                template_cert_no=self.template_cert_no,
             )
             self.summary_rows.extend(entries)
             self.generated_files.append(outname)

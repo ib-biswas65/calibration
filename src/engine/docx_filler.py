@@ -121,6 +121,7 @@ def fill_certificate(
     doc_date_jp: str,
     template_testdate: str,
     template_docdate: str,
+    template_cert_no: str = "0000001644",
 ):
     """
     Create a certificate from the template, filling in all values.
@@ -137,18 +138,13 @@ def fill_certificate(
         doc_date_jp: New document date (Japanese format)
         template_testdate: Placeholder test date in template
         template_docdate: Placeholder doc date in template
+        template_cert_no: The cert number string currently in the template
+                          (will be replaced with cert_no). Configurable so
+                          it works with any template, not just one with "0000001644".
     """
     doc = Document(str(template_path))
 
-    # --- DIRECT WRITES for cert number and serial (robust, no find-replace) ---
-
-    # 1. Certificate number: paragraph contains "証明書番号：XXXXXXXXXX"
-    # To avoid regex fragility, we use the specific template placeholder if provided.
-    # Note: If the user manually edits the template, the placeholder might span multiple runs.
-    # A safer approach for docx is mapping replacement, which handles runs better.
-    # We will use the existing replace_text_everywhere logic.
-
-    # 2. Serial number in product table (Table 0, Row 1, Cell 2 = 型番)
+    # Serial number in product table (Table 0, Row 1, Cell 2 = 型番)
     product_tbl = doc.tables[0]
     serial_cell = product_tbl.rows[1].cells[2]
     if serial_cell.paragraphs and serial_cell.paragraphs[0].runs:
@@ -158,9 +154,9 @@ def fill_certificate(
     else:
         serial_cell.text = serial
 
-    # 3. Dates, cert numbers, and any remaining serial references via string replacement
+    # Build replacement mapping — cert number key is now fully configurable
     mapping = {
-        "0000001644": cert_no,  # TEMPLATE_CERT_NO hardcoded fallback
+        template_cert_no: cert_no,
         template_serial: serial,
         template_testdate: test_date_jp,
         template_docdate: doc_date_jp,
