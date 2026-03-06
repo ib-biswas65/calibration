@@ -102,7 +102,7 @@ class CustomTitleBar(ft.Container):
         )
         self.height = 32
         self.bgcolor = BG_PRIMARY
-        self.padding = ft.padding.only(left=SPACING_MD)
+        self.padding = ft.Padding.only(left=SPACING_MD)
 
         # Only show on Windows
         self.visible = IS_WINDOWS

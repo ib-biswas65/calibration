@@ -53,7 +53,7 @@ class LogEntry(ft.Container):
             spacing=SPACING_SM,
             vertical_alignment=ft.CrossAxisAlignment.START,
         )
-        self.padding = ft.padding.symmetric(horizontal=12, vertical=4)
+        self.padding = ft.Padding.symmetric(horizontal=12, vertical=4)
         self.animate_opacity = ft.Animation(DURATION_NORMAL, CURVE_DEFAULT)
         self.opacity = 0
 
@@ -105,7 +105,7 @@ class ProcessingLog(ft.Container):
 
         self.bgcolor = BG_SECONDARY
         self.border_radius = RADIUS_MD
-        self.padding = ft.padding.all(12)
+        self.padding = ft.Padding.all(12)
         self.expand = True
 
     def add_entry(self, message: str, level: str = "info"):

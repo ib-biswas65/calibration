@@ -13,16 +13,22 @@ Usage:
 
 import sys
 import platform
+from pathlib import Path
 import flet as ft
 
-from .theme import (
+# Ensure project root is in sys.path so 'flet run src/main.py' works
+project_root = str(Path(__file__).parent.parent.absolute())
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.theme import (
     BG_PRIMARY, ACCENT_PRIMARY, TEXT_PRIMARY,
     WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT, WINDOW_TITLE,
     IS_WINDOWS, FONT_PRIMARY, FONT_FALLBACK,
 )
-from .components.custom_title_bar import CustomTitleBar
-from .views.login_view import LoginView
-from .views.dashboard_view import DashboardView
+from src.components.custom_title_bar import CustomTitleBar
+from src.views.login_view import LoginView
+from src.views.dashboard_view import DashboardView
 
 
 async def main(page: ft.Page):

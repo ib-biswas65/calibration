@@ -132,7 +132,7 @@ class FileDropZone(ft.Container):
                 ft.Container(
                     content=self._remove_btn,
                     alignment=ft.Alignment(1, -1),
-                    padding=ft.padding.only(top=4, right=4),
+                    padding=ft.Padding.only(top=4, right=4),
                 ),
             ],
             expand=True,
@@ -142,7 +142,7 @@ class FileDropZone(ft.Container):
         self.height = 160
         self.border_radius = RADIUS_LG
         self.bgcolor = BG_CARD
-        self.border = ft.border.all(1.5, BORDER_DEFAULT)
+        self.border = ft.Border.all(1.5, BORDER_DEFAULT)
         self.padding = SPACING_MD
         self.alignment = ft.Alignment(0, 0)
         self.animate = ft.Animation(DURATION_NORMAL, CURVE_DEFAULT)
@@ -152,7 +152,7 @@ class FileDropZone(ft.Container):
         self._is_hovered = e.data == "true"
         if not self._is_accepted:
             self.bgcolor = BG_CARD_HOVER if self._is_hovered else BG_CARD
-            self.border = ft.border.all(
+            self.border = ft.Border.all(
                 1.5, ACCENT_PRIMARY if self._is_hovered else BORDER_DEFAULT
             )
             self._icon.color = ACCENT_PRIMARY if self._is_hovered else TEXT_SECONDARY
@@ -179,7 +179,12 @@ class FileDropZone(ft.Container):
     def show_remove_button(self, visible: bool):
         """Dynamically show or hide the remove button."""
         self._remove_btn.visible = visible
-        self._remove_btn.update()
+        # Check if control is mounted before updating to avoid RuntimeError
+        try:
+            if self.page:
+                self._remove_btn.update()
+        except RuntimeError:
+            pass
 
     def accept_file(self, file_path: str, file_name: str):
         """Called by parent when a file is selected for this zone."""
@@ -196,7 +201,7 @@ class FileDropZone(ft.Container):
         self._filename_text.visible = True
         self._label.color = TEXT_PRIMARY
         self.bgcolor = BG_CARD
-        self.border = ft.border.all(1.5, ACCENT_SECONDARY)
+        self.border = ft.Border.all(1.5, ACCENT_SECONDARY)
         self.update()
 
     def reset(self):
@@ -211,7 +216,7 @@ class FileDropZone(ft.Container):
         self._filename_text.visible = False
         self._label.color = TEXT_SECONDARY
         self.bgcolor = BG_CARD
-        self.border = ft.border.all(1.5, BORDER_DEFAULT)
+        self.border = ft.Border.all(1.5, BORDER_DEFAULT)
         self.update()
 
     def shake(self):
@@ -222,7 +227,7 @@ class FileDropZone(ft.Container):
                 self.offset = ft.Offset(dx / 100, 0)
                 self.update()
                 await asyncio.sleep(0.04)
-            self.border = ft.border.all(1.5, ACCENT_DANGER)
+            self.border = ft.Border.all(1.5, ACCENT_DANGER)
             self.update()
 
         if self.page:
