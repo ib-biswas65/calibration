@@ -29,7 +29,7 @@ from docx.oxml.ns import qn
 # CONFIGURATION
 # ============================================================
 
-START_CERT_NO = 1645
+START_CERT_NO = 1700
 CERT_WIDTH = 10  # zero-padded width
 
 TEST_DATE_JP = "2026年3月4日"
@@ -371,9 +371,35 @@ for i, serial in enumerate(sheet_names):
     # Create certificate from template
     doc = Document(TEMPLATE_PATH)
 
-    # Replace text placeholders
+    # --- DIRECT WRITES for cert number and serial (robust, no find-replace) ---
+    
+    # 1. Certificate number: paragraph contains "証明書番号：XXXXXXXXXX"
+    #    The number may be split across multiple runs (e.g. after manual editing),
+    #    so we consolidate all run text into run[0] and clear the rest.
+    for p in doc.paragraphs:
+        if "証明書番号" in p.text:
+            # Merge all runs into one text, replace the number, put it all in run[0]
+            full_text = p.text
+            new_text = re.sub(r"\d{7,10}", cert_no, full_text)
+            if p.runs:
+                p.runs[0].text = new_text
+                for run in p.runs[1:]:
+                    run.text = ""
+            break
+
+    # 2. Serial number in product table (Table 0, Row 1, Cell 2 = 型番)
+    #    Same approach: consolidate runs to handle split text.
+    product_tbl = doc.tables[0]
+    serial_cell = product_tbl.rows[1].cells[2]
+    if serial_cell.paragraphs and serial_cell.paragraphs[0].runs:
+        serial_cell.paragraphs[0].runs[0].text = serial
+        for run in serial_cell.paragraphs[0].runs[1:]:
+            run.text = ""
+    else:
+        serial_cell.text = serial
+
+    # 3. Dates and any remaining serial references via string replacement
     mapping = {
-        TEMPLATE_CERT_NO: cert_no,
         TEMPLATE_SERIAL: serial,
         TEMPLATE_TESTDATE: TEST_DATE_JP,
         TEMPLATE_DOCDATE: DOC_DATE_JP,
