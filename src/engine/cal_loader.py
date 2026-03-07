@@ -34,4 +34,6 @@ def load_calibration_sheet(wb, sheet_name: str) -> pd.DataFrame:
         except (ValueError, TypeError):
             continue
         rows.append((ts, temp2))
-    return pd.DataFrame(rows, columns=["timestamp", "temp"])
+    df = pd.DataFrame(rows, columns=["timestamp", "temp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df

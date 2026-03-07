@@ -44,7 +44,7 @@ async def main(page: ft.Page):
     page.window.min_height = WINDOW_MIN_HEIGHT
     page.window.width = 1200
     page.window.height = 800
-    await page.window.center()
+    page.window.center()
 
     # Windows: frameless for custom title bar and prevent accidental close
     if IS_WINDOWS:

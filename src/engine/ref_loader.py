@@ -116,7 +116,9 @@ def load_ref_auto(path: Path) -> pd.DataFrame:
                     except (ValueError, IndexError):
                         pass
 
-    return pd.DataFrame(data, columns=["timestamp", "temp"])
+    df = pd.DataFrame(data, columns=["timestamp", "temp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df
 
 
 def combine_refs(ref_dfs: List[pd.DataFrame]) -> pd.DataFrame:

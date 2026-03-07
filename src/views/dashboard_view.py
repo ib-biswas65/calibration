@@ -405,8 +405,6 @@ class DashboardView(ft.Container):
         They must NOT be added to the non-existent page.services attribute.
         """
         self._page.overlay.append(self._snackbar)
-        self._page.overlay.append(self._file_picker)   # ← critical: registers picker
-        self._page.overlay.append(self._dir_picker)    # ← critical: registers picker
         self._page.update()
 
         # Add the first (mandatory) reference zone
@@ -475,10 +473,12 @@ class DashboardView(ft.Container):
 
     def _browse_for_zone(self, zone_key: str):
         """Delegate file picking to the shared FilePicker."""
+        print(f"[UI EVENT] Received click on file drop zone for: {zone_key}")
         self._page.run_task(self._async_pick, zone_key)
 
     async def _async_pick(self, zone_key: str):
         """Open file picker, then route the result to the correct zone."""
+        print(f"[FILE PICKER] Attempting to pick files for: {zone_key}")
         if zone_key.startswith("ref_"):
             exts = self._zone_exts["ref"]
         elif zone_key == "calibration":
@@ -486,17 +486,25 @@ class DashboardView(ft.Container):
         else:
             exts = self._zone_exts["template"]
 
+        print(f"[FILE PICKER] Allowed extensions: {exts}")
+
         try:
+            print("[FILE PICKER] Awaiting native dialog open...")
             files = await self._file_picker.pick_files(
                 allow_multiple=False,
                 allowed_extensions=exts,
             )
+            print(f"[FILE PICKER] Result: {files}")
         except Exception as ex:
+            print(f"[FILE PICKER EXCEPTION] Error opening file picker: {ex}")
             self._log.add_entry(f"File picker error: {ex}", "error")
+            import traceback
+            traceback.print_exc()
             return
 
         # User cancelled or no files selected
         if not files:
+            print("[FILE PICKER] No files selected/Dialog cancelled.")
             return
 
         picked = files[0]
@@ -712,6 +720,12 @@ class DashboardView(ft.Container):
             self._log.add_entry(f"📁  Output: {output_dir}", "info")
 
         except Exception as ex:
+            import traceback
+            try:
+                with open("generate_error.log", "w") as f:
+                    f.write(traceback.format_exc())
+            except Exception:
+                pass
             self._log.add_entry(f"❌  ERROR: {ex}", "error")
 
         finally:

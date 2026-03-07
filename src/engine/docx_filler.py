@@ -31,13 +31,42 @@ def iter_block_items(parent):
 
 
 def replace_text_in_paragraph(paragraph, mapping: dict):
-    """Replace text across all runs in a paragraph."""
-    for run in paragraph.runs:
-        txt = run.text
-        for old, new in mapping.items():
-            if old in txt:
-                txt = txt.replace(old, new)
-        run.text = txt
+    """Replace text across all runs in a paragraph.
+
+    Word often splits a single visible string across multiple XML <w:r> runs
+    due to internal formatting, spell-check marks, or edit history.
+    For example, '0000001644' might be stored as runs ['00000016', '44'].
+
+    This function concatenates all run texts, performs the replacement on the
+    combined string, and then redistributes the result back to the original
+    runs so that all existing formatting (font, size, bold, color) is preserved.
+    """
+    runs = paragraph.runs
+    if not runs:
+        return
+
+    # Step 1: Build the full paragraph text from all runs
+    full_text = "".join(r.text for r in runs)
+
+    # Check if any replacement is needed at all (fast path)
+    needs_replace = False
+    for old in mapping:
+        if old in full_text:
+            needs_replace = True
+            break
+    if not needs_replace:
+        return
+
+    # Step 2: Perform all replacements on the combined text
+    for old, new in mapping.items():
+        full_text = full_text.replace(old, new)
+
+    # Step 3: Redistribute the new text back across the original runs.
+    # The first run gets all the text; remaining runs are emptied.
+    # This preserves the first run's formatting for the entire replaced text.
+    runs[0].text = full_text
+    for run in runs[1:]:
+        run.text = ""
 
 
 def replace_text_everywhere(doc, mapping: dict):

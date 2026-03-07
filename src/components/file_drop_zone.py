@@ -120,14 +120,11 @@ class FileDropZone(ft.Container):
         # Stack: inner column (clickable) + remove button (top-right)
         self.content = ft.Stack(
             controls=[
-                ft.GestureDetector(
-                    content=ft.Container(
-                        content=self._inner_col,
-                        expand=True,
-                        alignment=ft.Alignment(0, 0),
-                    ),
-                    on_tap=self._on_click,
+                ft.Container(
+                    content=self._inner_col,
                     expand=True,
+                    alignment=ft.Alignment(0, 0),
+                    on_click=self._on_click,
                 ),
                 ft.Container(
                     content=self._remove_btn,
@@ -147,6 +144,7 @@ class FileDropZone(ft.Container):
         self.alignment = ft.Alignment(0, 0)
         self.animate = ft.Animation(DURATION_NORMAL, CURVE_DEFAULT)
         self.on_hover = self._on_hover
+        self.on_click = self._on_click
 
     def _on_hover(self, e: ft.HoverEvent):
         self._is_hovered = e.data == "true"
