@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# App data / runtime artefacts
+generate_error.log
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Flet / Flutter build outputs
+build/
+.dart_tool/
+
+# Secrets / env
+.env
+.env.*

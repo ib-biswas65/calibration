@@ -28,7 +28,6 @@ from src.theme import (
 )
 from src.components.custom_title_bar import CustomTitleBar
 from src.views.login_view import LoginView
-from src.views.dashboard_view import DashboardView
 
 
 async def main(page: ft.Page):
@@ -71,18 +70,19 @@ async def main(page: ft.Page):
     title_bar = CustomTitleBar(page)
 
     # ── Navigation ──
-    async def navigate_to_dashboard():
+    async def navigate_to_app_shell():
         """Called by LoginView after enter animation completes."""
         page.controls.clear()
-        page.overlay.clear()  # FIX: Prevent overlay accumulation
+        page.overlay.clear()
         if IS_WINDOWS:
             page.controls.append(title_bar)
-        dashboard = DashboardView(page)
-        page.controls.append(dashboard)
+        from src.views.app_shell import AppShell
+        shell = AppShell(page)
+        page.controls.append(shell)
         page.update()
 
     # ── Initial View: Login ──
-    login = LoginView(page, on_enter=navigate_to_dashboard)
+    login = LoginView(page, on_enter=navigate_to_app_shell)
 
     if IS_WINDOWS:
         page.controls.append(title_bar)

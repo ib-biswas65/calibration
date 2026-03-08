@@ -35,7 +35,8 @@ from ..theme import (
 )
 from ..components.file_drop_zone import FileDropZone
 from ..components.processing_log import ProcessingLog
-from ..engine import CalibrationEngine
+from ..components.bulk_assign_panel import BulkAssignPanel, auto_assign
+from ..engine import CalibrationEngine, HistoryStore
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,10 @@ def _divider() -> ft.Divider:
 class DashboardView(ft.Container):
     """Main dashboard — file inputs, config panel, processing log."""
 
-    def __init__(self, page: ft.Page, **kwargs):
+    def __init__(self, page: ft.Page, on_generation_complete=None, **kwargs):
         super().__init__(**kwargs)
         self._page = page
+        self._on_generation_complete = on_generation_complete
 
         # ── State ────────────────────────────────────────────────────────────
         self._ref_zones: list[dict] = []   # {key, zone, path}
@@ -109,6 +111,11 @@ class DashboardView(ft.Container):
         # ── File pickers (registered in did_mount via page.overlay) ──────────
         self._file_picker = ft.FilePicker()
         self._dir_picker  = ft.FilePicker()
+        self._bulk_picker = ft.FilePicker()   # multi-select for bulk upload
+
+        # Bulk panel state
+        self._bulk_panel: BulkAssignPanel | None = None
+        self._last_session_data: dict | None = None
 
         self._zone_exts = {"ref": ["csv"], "calibration": ["xlsx"], "template": ["docx"]}
 
@@ -161,15 +168,74 @@ class DashboardView(ft.Container):
             icon=ft.Icons.DESCRIPTION_ROUNDED, on_browse=self._browse_for_zone,
         )
 
+        # ── Bulk upload button ────────────────────────────────────────────────
+        self._bulk_btn_text = ft.Text(
+            "Bulk Upload All Files", size=12, color=ACCENT_PRIMARY,
+            weight=ft.FontWeight.W_500,
+        )
+        self._bulk_btn = ft.TextButton(
+            content=ft.Row(
+                [
+                    ft.Icon(ft.Icons.UPLOAD_FILE_ROUNDED, size=16, color=ACCENT_PRIMARY),
+                    self._bulk_btn_text,
+                ],
+                spacing=6, tight=True,
+            ),
+            on_click=lambda e: self._page.run_task(self._async_bulk_pick),
+            tooltip="Select all files at once and assign roles  (⌘U)",
+            style=ft.ButtonStyle(
+                padding=ft.Padding.symmetric(horizontal=SPACING_MD, vertical=SPACING_SM),
+                side={ft.ControlState.DEFAULT: ft.BorderSide(1, ACCENT_PRIMARY)},
+                shape=ft.RoundedRectangleBorder(radius=RADIUS_SM),
+                overlay_color={ft.ControlState.HOVERED: f"{ACCENT_PRIMARY}18"},
+            ),
+        )
+
+        # ── "Load Last Session" chip ──────────────────────────────────────────
+        self._last_session_chip = ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(ft.Icons.HISTORY_ROUNDED, size=14, color=ACCENT_PRIMARY),
+                    ft.Text(
+                        "Load files from last session",
+                        size=12, color=ACCENT_PRIMARY, weight=ft.FontWeight.W_500,
+                    ),
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.CLOSE_ROUNDED, size=12, color=TEXT_MUTED),
+                        width=20, height=20, border_radius=10,
+                        bgcolor="transparent",
+                        alignment=ft.Alignment(0, 0),
+                        on_click=self._dismiss_last_session_chip,
+                        tooltip="Dismiss",
+                    ),
+                ],
+                spacing=SPACING_XS,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True,
+            ),
+            bgcolor=f"{ACCENT_PRIMARY}18",
+            border_radius=RADIUS_LG,
+            border=ft.Border.all(1, f"{ACCENT_PRIMARY}40"),
+            padding=ft.Padding.symmetric(horizontal=SPACING_MD, vertical=SPACING_SM),
+            on_click=self._on_load_last_session,
+            visible=False,   # shown only when history files exist on disk
+            animate_opacity=ft.Animation(DURATION_NORMAL, CURVE_DEFAULT),
+            opacity=0,
+        )
+
         self._files_section = ft.Container(
             content=ft.Column(
                 [
                     _section("Input Files"),
                     ft.Container(height=4),
+                    self._last_session_chip,
                     _subsection("Reference Logger(s)"),
                     ft.Container(height=6),
                     self._ref_zones_row,
-                    self._add_ref_btn,
+                    ft.Row(
+                        [self._add_ref_btn, self._bulk_btn],
+                        spacing=SPACING_SM,
+                    ),
                     ft.Container(height=SPACING_SM),
                     _divider(),
                     ft.Container(height=SPACING_SM),
@@ -449,7 +515,7 @@ class DashboardView(ft.Container):
         Register overlay controls (snackbar + file pickers) then animate entrance.
         Also restores previous session values and registers keyboard shortcuts.
         """
-        self._page.overlay.append(self._snackbar)
+        self._page.overlay.extend([self._snackbar, self._bulk_picker])
         self._page.update()
 
         # Add the first (mandatory) reference zone
@@ -460,6 +526,9 @@ class DashboardView(ft.Container):
 
         # Register keyboard shortcuts
         self._page.on_keyboard_event = self._on_keyboard
+
+        # Check last-session files in background (don't block the UI)
+        threading.Thread(target=self._check_last_session, daemon=True).start()
 
         # Staggered entrance animation
         self._page.run_task(self._animate_entrance)
@@ -473,12 +542,18 @@ class DashboardView(ft.Container):
             await asyncio.sleep(STAGGER_DELAY / 1000 * 3)
 
     def _on_keyboard(self, e: ft.KeyboardEvent):
-        """Handle keyboard shortcuts: Cmd/Ctrl+G = Generate, Cmd/Ctrl+L = Clear log."""
+        """Handle keyboard shortcuts:
+          ⌘/Ctrl+G → Generate certificates
+          ⌘/Ctrl+L → Clear log
+          ⌘/Ctrl+U → Bulk upload all files
+        """
         if (e.meta or e.ctrl):
             if e.key == "G" or e.key == "g":
                 self._handle_generate(None)
             elif e.key == "L" or e.key == "l":
                 self._log.clear()
+            elif e.key == "U" or e.key == "u":
+                self._page.run_task(self._async_bulk_pick)
 
     # ── Dynamic reference zones ───────────────────────────────────────────────
 
@@ -608,6 +683,138 @@ class DashboardView(ft.Container):
             self._output_path_label.color = TEXT_SECONDARY
             self._output_path_label.update()
             self._log.add_entry(f"Output folder set: {path}", "info")
+
+    # ── Bulk upload ───────────────────────────────────────────────────────────
+
+    async def _async_bulk_pick(self):
+        """Open a multi-select file picker then show the BulkAssignPanel."""
+        try:
+            files = await self._bulk_picker.pick_files(
+                allow_multiple=True,
+                allowed_extensions=["csv", "xlsx", "docx"],
+                dialog_title="Select all calibration files",
+            )
+        except Exception as ex:
+            logger.exception("Bulk picker error")
+            self._log.add_entry(f"Bulk picker error: {ex}", "error")
+            return
+
+        if not files:
+            return
+
+        assignments = auto_assign(files)
+        panel = BulkAssignPanel(
+            assignments=assignments,
+            on_confirm=self._apply_bulk_assignment,
+            on_dismiss=self._dismiss_bulk_panel,
+        )
+        self._bulk_panel = panel
+        self._page.overlay.append(panel)
+        self._page.update()
+
+    def _apply_bulk_assignment(
+        self, ref_paths: list, calibration_path: str, template_path: str
+    ):
+        """Apply confirmed bulk assignments to all drop zones."""
+        # Clear all existing reference zones
+        while self._ref_zones:
+            entry = self._ref_zones.pop()
+            if entry["zone"] in self._ref_zones_row.controls:
+                self._ref_zones_row.controls.remove(entry["zone"])
+
+        # Rebuild reference zones from selected paths
+        for path in ref_paths:
+            self._ref_counter += 1
+            key = f"ref_{self._ref_counter}"
+            zone = FileDropZone(
+                label=f"Reference Logger {len(self._ref_zones) + 1}",
+                zone_key=key,
+                icon=ft.Icons.SENSORS_ROUNDED,
+                on_browse=self._browse_for_zone,
+                on_remove=self._remove_ref_zone,
+            )
+            zone.accept_file(path, Path(path).name)
+            self._ref_zones.append({"key": key, "zone": zone, "path": path})
+            self._ref_zones_row.controls.append(zone)
+
+        self._sync_remove_buttons()
+        try:
+            self._ref_zones_row.update()
+        except Exception:
+            pass
+
+        # Calibration zone
+        self._calibration_path = calibration_path
+        self._drop_calib.accept_file(calibration_path, Path(calibration_path).name)
+        self._page.run_task(self._peek_xlsx_sheets, calibration_path)
+
+        # Template zone
+        self._template_path = template_path
+        self._drop_template.accept_file(template_path, Path(template_path).name)
+
+        # Update bulk button label to confirm N files loaded
+        total = len(ref_paths) + 2  # refs + calibration + template
+        self._bulk_btn_text.value = f"⬆ {total} files loaded ✓"
+        self._bulk_btn_text.color = ACCENT_SECONDARY
+        try:
+            self._bulk_btn_text.update()
+        except Exception:
+            pass
+
+        self._log.add_entry(
+            f"✓ Bulk assigned: {len(ref_paths)} reference + calibration + template",
+            "success",
+        )
+        self._dismiss_bulk_panel()
+
+    def _dismiss_bulk_panel(self):
+        """Remove the BulkAssignPanel from the page overlay."""
+        try:
+            if self._bulk_panel and self._bulk_panel in self._page.overlay:
+                self._page.overlay.remove(self._bulk_panel)
+            self._bulk_panel = None
+            self._page.update()
+        except Exception:
+            pass
+
+    # ── Load Last Session chip ────────────────────────────────────────────────
+
+    def _check_last_session(self):
+        """Background thread — show the chip only if last-session files exist on disk."""
+        try:
+            store = HistoryStore()
+            last = store.get_last_session_files()
+            store.close()
+            if last:
+                self._last_session_data = last
+                self._last_session_chip.visible = True
+                self._last_session_chip.opacity = 1.0
+                try:
+                    if self.page:
+                        self._last_session_chip.update()
+                except Exception:
+                    pass
+        except Exception:
+            logger.debug("Could not check last session files", exc_info=True)
+
+    def _on_load_last_session(self, e):
+        """Apply last session's file paths to all drop zones."""
+        if not self._last_session_data:
+            return
+        self._apply_bulk_assignment(
+            self._last_session_data["ref_paths"],
+            self._last_session_data["calibration_path"],
+            self._last_session_data["template_path"],
+        )
+        self._dismiss_last_session_chip(None)
+
+    def _dismiss_last_session_chip(self, e):
+        """Hide the 'Load Last Session' chip."""
+        self._last_session_chip.visible = False
+        try:
+            self._last_session_chip.update()
+        except Exception:
+            pass
 
     # ── UI helpers ────────────────────────────────────────────────────────────
 
@@ -822,6 +1029,25 @@ class DashboardView(ft.Container):
 
             # Persist session for next run
             self._save_session()
+
+            # Save to history database
+            try:
+                store = HistoryStore()
+                session_id = store.save_session(
+                    config=config,
+                    summary_df=engine.get_summary(),
+                    log_entries=self._log._entries,
+                    elapsed=elapsed,
+                    output_dir=output_dir,
+                    generated_files=engine.generated_files,
+                )
+                store.close()
+                if self._on_generation_complete:
+                    self._page.run_task(
+                        lambda: self._on_generation_complete(session_id)
+                    )
+            except Exception:
+                logger.exception("Failed to save session to history")
 
         except Exception as ex:
             logger.exception("Certificate generation failed")
