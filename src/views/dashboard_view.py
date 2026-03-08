@@ -10,6 +10,10 @@ DashboardView — main workspace with:
 """
 
 import asyncio
+import logging
+import platform
+import subprocess
+import time
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -18,20 +22,22 @@ import flet as ft
 import openpyxl
 
 from ..theme import (
-    BG_PRIMARY, BG_SECONDARY, BG_CARD,
+    BG_PRIMARY, BG_SECONDARY, BG_CARD, BG_GLASS_STRONG,
     ACCENT_PRIMARY, ACCENT_SECONDARY, ACCENT_TERTIARY, ACCENT_DANGER,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED,
     BORDER_DEFAULT,
-    RADIUS_SM, RADIUS_MD, RADIUS_LG,
-    SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL,
+    RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_XL,
+    SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL,
     DURATION_NORMAL, DURATION_SLOW,
-    CURVE_DEFAULT, STAGGER_DELAY,
+    CURVE_DEFAULT, CURVE_BOUNCE, STAGGER_DELAY,
     SHADOW_CARD,
     WINDOW_TITLE,
 )
 from ..components.file_drop_zone import FileDropZone
 from ..components.processing_log import ProcessingLog
 from ..engine import CalibrationEngine
+
+logger = logging.getLogger(__name__)
 
 
 # ── Default time ranges (pre-filled; user edits per session) ──────────────
@@ -175,8 +181,6 @@ class DashboardView(ft.Container):
                     ),
                 ],
             ),
-            animate_opacity=ft.Animation(DURATION_SLOW, CURVE_DEFAULT),
-            opacity=0,
         )
 
         # ── Output directory ──────────────────────────────────────────────────
@@ -305,8 +309,6 @@ class DashboardView(ft.Container):
                     self._output_dir_row,
                 ],
             ),
-            animate_opacity=ft.Animation(DURATION_SLOW, CURVE_DEFAULT),
-            opacity=0,
         )
 
         # ── Generate button ───────────────────────────────────────────────────
@@ -342,6 +344,28 @@ class DashboardView(ft.Container):
             scale=1.0,
             shadow=SHADOW_CARD,
             opacity=0,
+            tooltip="Generate Certificates (⌘G)",
+        )
+
+        # ── Progress bar ───────────────────────────────────────────────────────
+        self._progress_bar = ft.ProgressBar(
+            value=0,
+            color=ACCENT_PRIMARY,
+            bgcolor="#30363D40",
+            border_radius=RADIUS_SM,
+        )
+        self._progress_text = ft.Text(
+            "", size=12, color=TEXT_SECONDARY,
+            text_align=ft.TextAlign.CENTER,
+        )
+        self._progress_section = ft.Container(
+            content=ft.Column(
+                [self._progress_bar, self._progress_text],
+                spacing=SPACING_XS,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            padding=ft.Padding.symmetric(horizontal=SPACING_XL),
+            visible=False,
         )
 
         # ── Processing log ────────────────────────────────────────────────────
@@ -360,6 +384,30 @@ class DashboardView(ft.Container):
         )
 
         # ── Main layout ───────────────────────────────────────────────────────
+        # Wrap sections in glassmorphic cards for industry-grade look
+        files_card = ft.Container(
+            content=self._files_section,
+            bgcolor=BG_GLASS_STRONG,
+            border_radius=RADIUS_LG,
+            border=ft.Border.all(1, "#30363D40"),
+            padding=ft.Padding.all(SPACING_MD),
+            shadow=SHADOW_CARD,
+            animate_opacity=ft.Animation(DURATION_SLOW, CURVE_DEFAULT),
+            opacity=0,
+        )
+        config_card = ft.Container(
+            content=self._config_section,
+            bgcolor=BG_GLASS_STRONG,
+            border_radius=RADIUS_LG,
+            border=ft.Border.all(1, "#30363D40"),
+            padding=ft.Padding.all(SPACING_MD),
+            shadow=SHADOW_CARD,
+            animate_opacity=ft.Animation(DURATION_SLOW, CURVE_DEFAULT),
+            opacity=0,
+        )
+        self._files_card = files_card
+        self._config_card = config_card
+
         self.content = ft.Container(
             content=ft.Column(
                 [
@@ -367,12 +415,12 @@ class DashboardView(ft.Container):
                     ft.Container(
                         content=ft.Column(
                             [
-                                self._files_section,
-                                _divider(),
-                                self._config_section,
+                                files_card,
+                                config_card,
                                 ft.Container(height=SPACING_SM),
                                 ft.Row([self._generate_btn],
                                        alignment=ft.MainAxisAlignment.CENTER),
+                                self._progress_section,
                                 ft.Container(height=SPACING_MD),
                                 self._log_section,
                             ],
@@ -399,10 +447,7 @@ class DashboardView(ft.Container):
     def did_mount(self):
         """
         Register overlay controls (snackbar + file pickers) then animate entrance.
-
-        IMPORTANT: FilePicker is a Flet Service. In Flet 0.82, Services self-register
-        via context.page when added to page.overlay and page.update() is called.
-        They must NOT be added to the non-existent page.services attribute.
+        Also restores previous session values and registers keyboard shortcuts.
         """
         self._page.overlay.append(self._snackbar)
         self._page.update()
@@ -410,16 +455,30 @@ class DashboardView(ft.Container):
         # Add the first (mandatory) reference zone
         self._add_ref_zone()
 
+        # Restore session values
+        self._restore_session()
+
+        # Register keyboard shortcuts
+        self._page.on_keyboard_event = self._on_keyboard
+
         # Staggered entrance animation
         self._page.run_task(self._animate_entrance)
 
     async def _animate_entrance(self):
         await asyncio.sleep(0.08)
-        for el in [self._header, self._files_section, self._config_section,
+        for el in [self._header, self._files_card, self._config_card,
                    self._generate_btn, self._log_section]:
             el.opacity = 1
             el.update()
             await asyncio.sleep(STAGGER_DELAY / 1000 * 3)
+
+    def _on_keyboard(self, e: ft.KeyboardEvent):
+        """Handle keyboard shortcuts: Cmd/Ctrl+G = Generate, Cmd/Ctrl+L = Clear log."""
+        if (e.meta or e.ctrl):
+            if e.key == "G" or e.key == "g":
+                self._handle_generate(None)
+            elif e.key == "L" or e.key == "l":
+                self._log.clear()
 
     # ── Dynamic reference zones ───────────────────────────────────────────────
 
@@ -473,12 +532,12 @@ class DashboardView(ft.Container):
 
     def _browse_for_zone(self, zone_key: str):
         """Delegate file picking to the shared FilePicker."""
-        print(f"[UI EVENT] Received click on file drop zone for: {zone_key}")
+        logger.debug("Click on file drop zone: %s", zone_key)
         self._page.run_task(self._async_pick, zone_key)
 
     async def _async_pick(self, zone_key: str):
         """Open file picker, then route the result to the correct zone."""
-        print(f"[FILE PICKER] Attempting to pick files for: {zone_key}")
+        logger.debug("Picking files for zone: %s", zone_key)
         if zone_key.startswith("ref_"):
             exts = self._zone_exts["ref"]
         elif zone_key == "calibration":
@@ -486,25 +545,19 @@ class DashboardView(ft.Container):
         else:
             exts = self._zone_exts["template"]
 
-        print(f"[FILE PICKER] Allowed extensions: {exts}")
-
         try:
-            print("[FILE PICKER] Awaiting native dialog open...")
             files = await self._file_picker.pick_files(
                 allow_multiple=False,
                 allowed_extensions=exts,
             )
-            print(f"[FILE PICKER] Result: {files}")
+            logger.debug("FilePicker result: %s", files)
         except Exception as ex:
-            print(f"[FILE PICKER EXCEPTION] Error opening file picker: {ex}")
+            logger.exception("FilePicker error for zone %s", zone_key)
             self._log.add_entry(f"File picker error: {ex}", "error")
-            import traceback
-            traceback.print_exc()
             return
 
         # User cancelled or no files selected
         if not files:
-            print("[FILE PICKER] No files selected/Dialog cancelled.")
             return
 
         picked = files[0]
@@ -679,9 +732,37 @@ class DashboardView(ft.Container):
         self._generate_btn.update()
         self._log.clear()
 
+        # Show progress bar
+        self._progress_bar.value = 0
+        self._progress_text.value = "Preparing..."
+        self._progress_section.visible = True
+        try:
+            self._progress_section.update()
+        except Exception:
+            pass
+
         threading.Thread(target=self._run_engine, daemon=True).start()
 
+    def _on_progress(self, current: int, total: int, serial: str):
+        """Callback from CalibrationEngine.process() for each certificate."""
+        try:
+            self._progress_bar.value = current / total if total else 0
+            elapsed = time.time() - self._gen_start_time
+            if current > 0:
+                eta_secs = (elapsed / current) * (total - current)
+                eta_str = f" — ETA {int(eta_secs)}s"
+            else:
+                eta_str = ""
+            self._progress_text.value = (
+                f"Processing {current + 1} / {total} — {serial}{eta_str}"
+            )
+            self._progress_bar.update()
+            self._progress_text.update()
+        except Exception:
+            pass
+
     def _run_engine(self):
+        self._gen_start_time = time.time()
         try:
             # Parse time ranges
             time_ranges = {}
@@ -714,18 +795,36 @@ class DashboardView(ft.Container):
 
             engine = CalibrationEngine(config)
             engine.load_data(callback=self._log.add_entry)
-            engine.process(callback=self._log.add_entry)
+            engine.process(
+                callback=self._log.add_entry,
+                progress_callback=self._on_progress,
+            )
+
+            # Final progress = 100%
+            elapsed = time.time() - self._gen_start_time
+            self._progress_bar.value = 1.0
+            self._progress_text.value = f"Completed in {elapsed:.1f}s"
+            try:
+                self._progress_bar.update()
+                self._progress_text.update()
+            except Exception:
+                pass
 
             self._log.add_entry("✅  All certificates generated successfully!", "success")
             self._log.add_entry(f"📁  Output: {output_dir}", "info")
 
+            # Count warnings and show overlay
+            warning_count = sum(
+                1 for e in self._log._entries if e._level == "warning"
+            )
+            cert_count = len(engine.generated_files)
+            self._show_success_overlay(cert_count, warning_count, elapsed, output_dir)
+
+            # Persist session for next run
+            self._save_session()
+
         except Exception as ex:
-            import traceback
-            try:
-                with open("generate_error.log", "w") as f:
-                    f.write(traceback.format_exc())
-            except Exception:
-                pass
+            logger.exception("Certificate generation failed")
             self._log.add_entry(f"❌  ERROR: {ex}", "error")
 
         finally:
@@ -736,3 +835,188 @@ class DashboardView(ft.Container):
                 self._generate_btn.update()
             except Exception:
                 pass
+
+    # ── Session persistence ───────────────────────────────────────────────────
+
+    _SESSION_KEYS = [
+        ("cal_cert_no", "_cert_no_input"),
+        ("cal_cert_width", "_cert_width_input"),
+        ("cal_test_date", "_test_date_input"),
+        ("cal_doc_date", "_doc_date_input"),
+        ("cal_tmpl_serial", "_tmpl_serial_input"),
+        ("cal_tmpl_testdate", "_tmpl_testdate_input"),
+        ("cal_tmpl_docdate", "_tmpl_docdate_input"),
+        ("cal_tmpl_cert_no", "_tmpl_cert_no_input"),
+    ]
+
+    def _save_session(self):
+        """Save config field values to page.client_storage for next session."""
+        try:
+            for storage_key, attr_name in self._SESSION_KEYS:
+                field = getattr(self, attr_name, None)
+                if field and field.value:
+                    self._page.client_storage.set(storage_key, field.value.strip())
+            # Save time ranges
+            for target, flds in self._time_range_fields.items():
+                self._page.client_storage.set(
+                    f"cal_tr_{target}_start", flds["start"].value.strip()
+                )
+                self._page.client_storage.set(
+                    f"cal_tr_{target}_end", flds["end"].value.strip()
+                )
+        except Exception:
+            pass
+
+    def _restore_session(self):
+        """Restore config field values from page.client_storage."""
+        try:
+            for storage_key, attr_name in self._SESSION_KEYS:
+                val = self._page.client_storage.get(storage_key)
+                if val:
+                    field = getattr(self, attr_name, None)
+                    if field:
+                        field.value = val
+            # Restore time ranges
+            for target, flds in self._time_range_fields.items():
+                start_val = self._page.client_storage.get(f"cal_tr_{target}_start")
+                end_val = self._page.client_storage.get(f"cal_tr_{target}_end")
+                if start_val:
+                    flds["start"].value = start_val
+                if end_val:
+                    flds["end"].value = end_val
+            self._page.update()
+        except Exception:
+            pass
+
+    # ── Success overlay ───────────────────────────────────────────────────────
+
+    def _show_success_overlay(self, cert_count, warning_count, elapsed, output_dir):
+        """Show frosted-glass success card as a page overlay."""
+        self._last_output_dir = output_dir
+
+        stat_items = [
+            ("✅", f"{cert_count} certificates generated", ACCENT_SECONDARY),
+        ]
+        if warning_count > 0:
+            stat_items.append(
+                ("⚠️", f"{warning_count} warnings (±0.5°C exceeded)", ACCENT_TERTIARY)
+            )
+        stat_items.append(("⏱", f"Completed in {elapsed:.1f}s", TEXT_SECONDARY))
+        stat_items.append(("📂", str(output_dir), TEXT_MUTED))
+
+        stat_controls = []
+        for emoji, text, color in stat_items:
+            stat_controls.append(
+                ft.Row([
+                    ft.Text(emoji, size=16),
+                    ft.Text(text, size=13, color=color, expand=True),
+                ], spacing=SPACING_SM)
+            )
+
+        open_btn = ft.Container(
+            content=ft.Row(
+                [ft.Icon(ft.Icons.FOLDER_OPEN_ROUNDED, color="#FFFFFF", size=18),
+                 ft.Text("Open Output Folder", size=13, color="#FFFFFF",
+                         weight=ft.FontWeight.W_600)],
+                alignment=ft.MainAxisAlignment.CENTER, spacing=SPACING_SM,
+            ),
+            width=200, height=42, border_radius=RADIUS_LG,
+            gradient=ft.LinearGradient(
+                colors=[ACCENT_PRIMARY, "#3A88E8"],
+                begin=ft.Alignment(-1, 0), end=ft.Alignment(1, 0),
+            ),
+            alignment=ft.Alignment(0, 0),
+            on_click=lambda _: self._open_output_folder(),
+            shadow=SHADOW_CARD,
+        )
+
+        again_btn = ft.Container(
+            content=ft.Row(
+                [ft.Icon(ft.Icons.REFRESH_ROUNDED, color=TEXT_PRIMARY, size=18),
+                 ft.Text("Generate Again", size=13, color=TEXT_PRIMARY,
+                         weight=ft.FontWeight.W_500)],
+                alignment=ft.MainAxisAlignment.CENTER, spacing=SPACING_SM,
+            ),
+            width=180, height=42, border_radius=RADIUS_LG,
+            bgcolor=BG_CARD,
+            border=ft.Border.all(1, BORDER_DEFAULT),
+            alignment=ft.Alignment(0, 0),
+            on_click=lambda _: self._dismiss_overlay(),
+        )
+
+        card = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Icon(ft.Icons.CELEBRATION_ROUNDED, size=48,
+                            color=ACCENT_SECONDARY),
+                    ft.Text("Generation Complete!", size=22, color=TEXT_PRIMARY,
+                            weight=ft.FontWeight.W_700,
+                            text_align=ft.TextAlign.CENTER),
+                    ft.Container(height=SPACING_SM),
+                    *stat_controls,
+                    ft.Container(height=SPACING_MD),
+                    ft.Row([open_btn, again_btn],
+                           alignment=ft.MainAxisAlignment.CENTER,
+                           spacing=SPACING_MD),
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=SPACING_SM,
+            ),
+            width=440, padding=ft.Padding.all(SPACING_XL),
+            border_radius=RADIUS_XL,
+            bgcolor=BG_GLASS_STRONG,
+            border=ft.Border.all(1, "#30363D60"),
+            shadow=SHADOW_CARD,
+            blur=ft.Blur(15, 15, ft.BlurTileMode.CLAMP),
+            animate_scale=ft.Animation(DURATION_SLOW, CURVE_BOUNCE),
+            animate_opacity=ft.Animation(DURATION_SLOW, CURVE_DEFAULT),
+            scale=0.9, opacity=0,
+        )
+
+        overlay_bg = ft.Container(
+            content=ft.Column(
+                [card],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=True,
+            ),
+            bgcolor="#00000088", expand=True,
+            on_click=lambda _: self._dismiss_overlay(),
+        )
+
+        self._success_overlay = overlay_bg
+        try:
+            self._page.overlay.append(overlay_bg)
+            self._page.update()
+            # Animate in
+            card.scale = 1.0
+            card.opacity = 1.0
+            card.update()
+        except Exception:
+            pass
+
+    def _dismiss_overlay(self):
+        """Remove the success overlay."""
+        try:
+            if hasattr(self, "_success_overlay") and self._success_overlay:
+                if self._success_overlay in self._page.overlay:
+                    self._page.overlay.remove(self._success_overlay)
+                self._success_overlay = None
+                self._page.update()
+        except Exception:
+            pass
+
+    def _open_output_folder(self):
+        """Open the output directory in the system file manager."""
+        try:
+            path = Path(self._last_output_dir)
+            if platform.system() == "Darwin":
+                subprocess.Popen(["open", str(path)])
+            elif platform.system() == "Windows":
+                subprocess.Popen(["explorer", str(path)])
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+        except Exception:
+            pass
+
+

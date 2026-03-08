@@ -69,9 +69,9 @@ def replace_text_in_paragraph(paragraph, mapping: dict):
         run.text = ""
 
 
-def replace_text_everywhere(doc, mapping: dict):
-    """Replace placeholder text in all paragraphs and table cells."""
-    for block in iter_block_items(doc):
+def _replace_in_blocks(parent, mapping: dict):
+    """Replace placeholder text in all paragraphs and table cells of a parent element."""
+    for block in iter_block_items(parent):
         if isinstance(block, Paragraph):
             replace_text_in_paragraph(block, mapping)
         elif isinstance(block, Table):
@@ -79,6 +79,36 @@ def replace_text_everywhere(doc, mapping: dict):
                 for cell in row.cells:
                     for p in cell.paragraphs:
                         replace_text_in_paragraph(p, mapping)
+
+
+def replace_text_everywhere(doc, mapping: dict):
+    """Replace placeholder text in the entire document: body, headers, and footers.
+
+    Japanese calibration certificate templates commonly place the cert number
+    and serial in headers/footers. This function ensures those are replaced too.
+    """
+    # 1. Document body
+    _replace_in_blocks(doc, mapping)
+
+    # 2. Section headers and footers
+    seen = set()
+    for section in doc.sections:
+        for hf in (section.header, section.footer,
+                   section.first_page_header, section.first_page_footer,
+                   section.even_page_header, section.even_page_footer):
+            if hf is None or hf.is_linked_to_previous:
+                continue
+            hf_id = id(hf._element)
+            if hf_id in seen:
+                continue
+            seen.add(hf_id)
+            for p in hf.paragraphs:
+                replace_text_in_paragraph(p, mapping)
+            for tbl in hf.tables:
+                for row in tbl.rows:
+                    for cell in row.cells:
+                        for p in cell.paragraphs:
+                            replace_text_in_paragraph(p, mapping)
 
 
 def set_cell_text_centered(cell, text: str):

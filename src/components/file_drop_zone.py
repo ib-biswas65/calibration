@@ -6,14 +6,16 @@ and calls accept_file() on this component.
 """
 
 import asyncio
+import os
 import flet as ft
 from pathlib import Path
 from ..theme import (
     ACCENT_PRIMARY, ACCENT_SECONDARY, ACCENT_DANGER,
     BG_CARD, BG_CARD_HOVER, BORDER_DEFAULT, BORDER_ACTIVE,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED,
-    RADIUS_LG, SPACING_MD, SPACING_SM,
+    RADIUS_LG, SPACING_MD, SPACING_SM, SPACING_XS,
     DURATION_NORMAL, DURATION_FAST, CURVE_DEFAULT,
+    SHADOW_GLOW,
 )
 
 
@@ -79,6 +81,13 @@ class FileDropZone(ft.Container):
             overflow=ft.TextOverflow.ELLIPSIS,
             visible=False,
         )
+        self._meta_chip = ft.Text(
+            "",
+            size=10,
+            color=TEXT_MUTED,
+            text_align=ft.TextAlign.CENTER,
+            visible=False,
+        )
         self._check_icon = ft.Icon(
             ft.Icons.CHECK_CIRCLE_ROUNDED,
             size=28,
@@ -110,10 +119,11 @@ class FileDropZone(ft.Container):
                 self._label,
                 self._sublabel,
                 self._filename_text,
+                self._meta_chip,
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
-            spacing=SPACING_SM,
+            spacing=SPACING_XS,
             expand=True,
         )
 
@@ -155,6 +165,8 @@ class FileDropZone(ft.Container):
             )
             self._icon.color = ACCENT_PRIMARY if self._is_hovered else TEXT_SECONDARY
             self._icon.scale = 1.1 if self._is_hovered else 1.0
+            # Glow effect on hover
+            self.shadow = SHADOW_GLOW if self._is_hovered else None
         self.update()
 
     def _on_click(self, e):
@@ -200,7 +212,28 @@ class FileDropZone(ft.Container):
         self._label.color = TEXT_PRIMARY
         self.bgcolor = BG_CARD
         self.border = ft.Border.all(1.5, ACCENT_SECONDARY)
+        self.shadow = None  # Remove glow on accept
+
+        # Show file metadata chip (size + extension)
+        try:
+            fsize = os.path.getsize(file_path)
+            if fsize < 1024:
+                size_str = f"{fsize} B"
+            elif fsize < 1024 * 1024:
+                size_str = f"{fsize / 1024:.1f} KB"
+            else:
+                size_str = f"{fsize / (1024*1024):.1f} MB"
+            ext = Path(file_path).suffix.upper().lstrip(".")
+            self._meta_chip.value = f"{size_str} \u00b7 {ext}"
+            self._meta_chip.visible = True
+        except Exception:
+            pass
+
         self.update()
+
+        # Pulse animation on checkmark
+        if self.page:
+            self.page.run_task(self._pulse_check)
 
     def reset(self):
         """Reset to initial state."""
@@ -212,10 +245,23 @@ class FileDropZone(ft.Container):
         self._check_icon.visible = False
         self._sublabel.visible = True
         self._filename_text.visible = False
+        self._meta_chip.visible = False
         self._label.color = TEXT_SECONDARY
         self.bgcolor = BG_CARD
         self.border = ft.Border.all(1.5, BORDER_DEFAULT)
+        self.shadow = None
         self.update()
+
+    async def _pulse_check(self):
+        """Pulse the checkmark icon after file acceptance."""
+        try:
+            self._check_icon.scale = 1.3
+            self._check_icon.update()
+            await asyncio.sleep(0.15)
+            self._check_icon.scale = 1.0
+            self._check_icon.update()
+        except Exception:
+            pass
 
     def shake(self):
         """Shake animation for validation error."""

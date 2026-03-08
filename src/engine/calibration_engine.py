@@ -114,10 +114,12 @@ class CalibrationEngine:
             "info",
         )
 
-    def process(self, callback: Optional[Callable] = None):
+    def process(self, callback: Optional[Callable] = None,
+                progress_callback: Optional[Callable] = None):
         """
         Process all loggers: match values and generate certificates.
         callback(message: str, level: str) is called for each step.
+        progress_callback(current: int, total: int, serial: str) is called per certificate.
         Returns list of generated filenames.
         """
         if self.ref_all is None or self.wb is None:
@@ -135,6 +137,10 @@ class CalibrationEngine:
 
         for i, serial in enumerate(self.sheet_names):
             cert_no = str(self.start_cert_no + i).zfill(self.cert_width)
+
+            # Emit progress
+            if progress_callback:
+                progress_callback(i, total, serial)
 
             # Load this logger's data
             cal_df = load_calibration_sheet(self.wb, serial)

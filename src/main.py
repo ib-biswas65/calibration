@@ -44,7 +44,10 @@ async def main(page: ft.Page):
     page.window.min_height = WINDOW_MIN_HEIGHT
     page.window.width = 1200
     page.window.height = 800
-    page.window.center()
+    try:
+        await page.window.center()
+    except Exception:
+        pass  # center() is not always awaitable across Flet versions
 
     # Windows: frameless for custom title bar and prevent accidental close
     if IS_WINDOWS:
@@ -53,7 +56,7 @@ async def main(page: ft.Page):
 
         def on_window_event(e):
             if e.data == "close":
-                page.window.destroy()
+                page.run_task(page.window.destroy)
 
         page.window.on_event = on_window_event
 
@@ -88,4 +91,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.run(main)
