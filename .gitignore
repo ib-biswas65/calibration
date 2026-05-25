@@ -59,6 +59,9 @@ apps/web/node_modules/
 apps/web/dist/
 apps/web/coverage/
 apps/web/.vite/
+apps/web/*.tsbuildinfo
+apps/web/vite.config.d.ts
+apps/web/vite.config.js
 
 # Local env
 infra/.env
