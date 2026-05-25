@@ -43,3 +43,25 @@ build/
 # Secrets / env
 .env
 .env.*
+
+# --- ITE Calibration monorepo ---
+# Python
+apps/api/.venv/
+apps/api/__pycache__/
+apps/api/**/__pycache__/
+apps/api/.pytest_cache/
+apps/api/.mypy_cache/
+apps/api/.ruff_cache/
+apps/api/*.egg-info/
+
+# Node
+apps/web/node_modules/
+apps/web/dist/
+apps/web/coverage/
+apps/web/.vite/
+
+# Local env
+infra/.env
+
+# Editor / OS
+.DS_Store
