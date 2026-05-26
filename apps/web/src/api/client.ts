@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-type Init = Omit<RequestInit, "body"> & { json?: unknown };
+type Init = Omit<RequestInit, "body"> & { json?: unknown; body?: BodyInit | null };
 
 export async function apiFetch<T>(path: string, init: Init = {}): Promise<T> {
   const { json, headers, ...rest } = init;

@@ -18,6 +18,7 @@ dependencies = [
   "pandas==2.2.3",
   "openpyxl==3.1.5",
   "python-docx==1.1.2",
+  "python-multipart==0.0.20",
 ]
 
 [project.scripts]
@@ -53,4 +54,4 @@ select = ["E", "F", "I", "UP", "B"]
 # B008: Depends(...) in argument defaults is FastAPI's idiomatic pattern.
 # B017: pytest.raises(Exception) is intentional in token-decoding tests
 #       where any of several JWT exceptions are acceptable.
-ignore = ["B008", "B017"]
+ignore = ["B008", "B017", "E501"]

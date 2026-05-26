@@ -1,0 +1,18 @@
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--c-border);
+  color: var(--c-text-soft);
+}
+
+.draft    { background: var(--c-border);    color: var(--c-text-soft); }
+.processing { background: #dbeafe; color: var(--c-info); }
+.complete { background: var(--c-accent-100); color: var(--c-accent-700); }
+.failed   { background: #fee2e2; color: var(--c-fail); }
+.pass     { background: var(--c-accent-100); color: var(--c-accent-700); }
+.fail     { background: #fee2e2; color: var(--c-fail); }
+.adjusted { background: #fef3c7; color: var(--c-warn); }

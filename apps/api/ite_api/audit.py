@@ -14,3 +14,4 @@ def write_audit(
     run_id: uuid.UUID | None = None,
 ) -> None:
     db.add(AuditLog(user_id=user_id, action=action, detail=detail, run_id=run_id))
+    db.commit()

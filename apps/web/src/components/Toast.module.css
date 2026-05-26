@@ -1,0 +1,28 @@
+.container {
+  position: fixed;
+  bottom: var(--s-6);
+  right: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  z-index: 1000;
+}
+
+.toast {
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-2);
+  animation: slideIn 0.2s ease;
+  max-width: 360px;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.success { background: var(--c-accent-600); color: #fff; }
+.error   { background: var(--c-fail);       color: #fff; }
+.info    { background: var(--c-text);        color: #fff; }

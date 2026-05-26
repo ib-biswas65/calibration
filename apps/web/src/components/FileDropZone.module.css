@@ -1,0 +1,35 @@
+.zone {
+  border: 2px dashed var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--s-6) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--c-bg);
+}
+
+.zone:hover, .dragging {
+  border-color: var(--c-accent-500);
+  background: var(--c-accent-50);
+}
+
+.hidden { display: none; }
+
+.icon {
+  font-size: 1.5rem;
+  color: var(--c-accent-500);
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--c-text-mute);
+}

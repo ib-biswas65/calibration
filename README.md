@@ -11,31 +11,16 @@ This repo is a monorepo:
 
 The legacy Flet desktop prototype lives in `src/` and `Old Method/` and is **not** part of the build.
 
-## Slice 2 (current): Calibration engine (CLI only)
+## What works now (Slices 1–6 complete)
 
-What works after this slice:
-
-- Everything from Slice 1.
-- New CLI: `ite-api run-calibration --workbook <xlsx> [--workbook <xlsx> ...] --reference <csv> [--reference <csv> ...] --template <docx> --output <dir> --test-date-jp 2026年4月14日 --doc-date-jp 2026年4月15日`
-- Output is one `.docx` certificate per sheet across all workbooks, written to `<dir>/`.
-- Supports any number of reference loggers (CSVs concatenated) and calibration workbooks.
-
-What doesn't work yet: no HTTP routes, no UI for triggering runs. Those arrive in Slice 3.
-
-## Engine smoke test
-
-```bash
-cd apps/api
-.venv/bin/ite-api run-calibration \
-  --workbook tests/fixtures/calibration/workbook.xlsx \
-  --reference tests/fixtures/calibration/reference.csv \
-  --template tests/fixtures/calibration/template.docx \
-  --output /tmp/ite-out \
-  --start-cert-no 0000001720 \
-  --test-date-jp 2026年4月14日 \
-  --doc-date-jp 2026年4月15日
-ls /tmp/ite-out/
-```
+- **Login** — email + password, httpOnly cookie sessions, lockout after 10 failures.
+- **Overview** — 4 stat tiles (loggers, runs, pass rate, overdue), recent runs, due-soon rails.
+- **New Calibration** — multi-step form: batch info → upload N reference CSVs + 1 calibration XLSX → configure setpoint windows → generate certificates (backend `BackgroundTask`), polling until done, zip download.
+- **History** — searchable, filterable run list; table ↔ card view toggle; click → run detail.
+- **Run Detail** — 4 tabs: Loggers (per-setpoint deviation cells), Setpoints, Conditions (file checksums), Audit trail. Per-certificate `.docx` download + "download all (.zip)".
+- **Admin / Users** — list users, invite (one-time setup link), change role, enable/disable.
+- **Engine** — CLI `ite-api run-calibration` for batch generation without the UI.
+- **Data** persisted to Postgres + local disk volume (`/var/lib/ite-calibration/data/`).
 
 ## Slice 1: Auth + AppShell
 

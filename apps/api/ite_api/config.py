@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,6 +8,7 @@ class Settings(BaseSettings):
 
     env: str = "dev"
     database_url: str = "postgresql+psycopg://ite:ite@localhost:5432/ite"
+    data_dir: Path = Path("/var/lib/ite-calibration/data")
 
     jwt_secret: str = "dev-only-change-me"
     access_token_minutes: int = 15
