@@ -17,6 +17,9 @@ dependencies = [
   "typer==0.15.1",
 ]
 
+[project.scripts]
+ite-api = "ite_api.cli:app"
+
 [project.optional-dependencies]
 dev = [
   "pytest==8.3.4",
