@@ -449,6 +449,27 @@ def download_all_certs(
     )
 
 
+@router.get("/by-cert-no/{cert_no}")
+def find_by_cert_no(
+    cert_no: str,
+    db: Session = Depends(get_session),
+    user: User = require_role("viewer"),
+):
+    result = db.scalars(select(LoggerResult).where(LoggerResult.cert_no == cert_no)).first()
+    if result is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="certificate not found")
+    run = db.get(CalibrationRun, result.run_id)
+    return {
+        "result_id": str(result.id),
+        "run_id": str(result.run_id),
+        "cert_no": result.cert_no,
+        "sheet_name": result.sheet_name,
+        "verdict": result.verdict,
+        "batch_name": run.batch_name if run else None,
+        "certificate_date": run.certificate_date.isoformat() if run and run.certificate_date else None,
+    }
+
+
 # ── Background task ───────────────────────────────────────────────────────
 
 def _run_processing_task(

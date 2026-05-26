@@ -165,3 +165,24 @@ def reset_password(
     _set_auth_cookies(response, access=access, refresh=refresh)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: ChangePasswordRequest,
+    db: Session = Depends(get_session),
+    user: User = current_user,
+) -> Response:
+    if len(body.new_password) < 12:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters")
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="current password is incorrect")
+    user.password_hash = hash_password(body.new_password)
+    write_audit(db, user_id=user.id, action="password.changed", detail=None)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

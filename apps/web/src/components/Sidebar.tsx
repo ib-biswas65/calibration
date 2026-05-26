@@ -9,6 +9,7 @@ const NAV: { to: string; label: string; adminOnly?: boolean }[] = [
   { to: "/new", label: "New calibration" },
   { to: "/upcoming", label: "Upcoming" },
   { to: "/loggers", label: "Loggers" },
+  { to: "/certificate", label: "Cert lookup" },
   { to: "/settings", label: "Settings" },
   { to: "/admin/users", label: "Users", adminOnly: true },
 ];
