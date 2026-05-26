@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# App data / runtime artefacts
+generate_error.log
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Flet / Flutter build outputs
+build/
+.dart_tool/
+
+# Secrets / env
+.env
+.env.*
+
+# --- ITE Calibration monorepo ---
+# Python
+apps/api/.venv/
+apps/api/__pycache__/
+apps/api/**/__pycache__/
+apps/api/.pytest_cache/
+apps/api/.mypy_cache/
+apps/api/.ruff_cache/
+apps/api/*.egg-info/
+
+# Node
+apps/web/node_modules/
+apps/web/dist/
+apps/web/coverage/
+apps/web/.vite/
+apps/web/*.tsbuildinfo
+apps/web/vite.config.d.ts
+apps/web/vite.config.js
+
+# Local env
+infra/.env
+
+# Editor / OS
+.DS_Store
