@@ -70,8 +70,8 @@ class BatchConfig:
     test_date_jp: str
     doc_date_jp: str
     template_path: Path
-    calibration_xlsx: Path
-    reference_csvs: list[Path]
+    calibration_xlsxs: list[Path]   # one or more workbooks; sheets concatenated in order
+    reference_csvs: list[Path]      # one or more reference CSVs; rows concatenated
     output_dir: Path
     setpoints: list[SetpointWindow]
     serial_from_sheet: bool = True
@@ -82,22 +82,25 @@ def _format_cert_no(n: int, width: int) -> str:
 
 
 def run_calibration(cfg: BatchConfig) -> list[Path]:
-    """Process every sheet in the workbook. Returns list of written paths in sheet order."""
+    """Process every sheet across all workbooks. Returns written paths in iteration order."""
     ref_df = combine_refs([load_ref_auto(p) for p in cfg.reference_csvs])
-    wb, sheet_names = load_workbook(cfg.calibration_xlsx)
     start = int(cfg.start_cert_no)
     written: list[Path] = []
-    for i, name in enumerate(sheet_names):
-        cert_no = _format_cert_no(start + i, cfg.cert_width)
-        serial = name.strip() if cfg.serial_from_sheet else ""
-        run_cfg = RunConfig(
-            cert_no=cert_no,
-            serial=serial,
-            test_date_jp=cfg.test_date_jp,
-            doc_date_jp=cfg.doc_date_jp,
-            template_path=cfg.template_path,
-            output_dir=cfg.output_dir,
-            setpoints=cfg.setpoints,
-        )
-        written.append(run_one_logger(run_cfg, sheet_name=name, wb=wb, ref_df=ref_df))
+    cert_idx = 0
+    for xlsx_path in cfg.calibration_xlsxs:
+        wb, sheet_names = load_workbook(xlsx_path)
+        for name in sheet_names:
+            cert_no = _format_cert_no(start + cert_idx, cfg.cert_width)
+            serial = name.strip() if cfg.serial_from_sheet else ""
+            run_cfg = RunConfig(
+                cert_no=cert_no,
+                serial=serial,
+                test_date_jp=cfg.test_date_jp,
+                doc_date_jp=cfg.doc_date_jp,
+                template_path=cfg.template_path,
+                output_dir=cfg.output_dir,
+                setpoints=cfg.setpoints,
+            )
+            written.append(run_one_logger(run_cfg, sheet_name=name, wb=wb, ref_df=ref_df))
+            cert_idx += 1
     return written

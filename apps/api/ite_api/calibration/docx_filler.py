@@ -126,5 +126,5 @@ def fill_results_table(
             break
         std, act = ordered_values[i]
         row = table.rows[row_idx]
-        _set_cell(row.cells[col_std], "" if std is None else f"{std:.2f}")
-        _set_cell(row.cells[col_act], "" if act is None else f"{act:.2f}")
+        _set_cell(row.cells[col_std], "" if std is None else f"{std:.1f}")
+        _set_cell(row.cells[col_act], "" if act is None else f"{act:.1f}")

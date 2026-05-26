@@ -42,7 +42,7 @@ def create_admin(
 
 @app.command("run-calibration")
 def run_calibration_cmd(
-    workbook: Path = typer.Option(..., "--workbook", exists=True, dir_okay=False),
+    workbook: list[Path] = typer.Option(..., "--workbook", exists=True, dir_okay=False),
     reference: list[Path] = typer.Option(..., "--reference", exists=True, dir_okay=False),
     template: Path = typer.Option(..., "--template", exists=True, dir_okay=False),
     output: Path = typer.Option(..., "--output", file_okay=False),
@@ -72,7 +72,7 @@ def run_calibration_cmd(
         test_date_jp=test_date_jp,
         doc_date_jp=doc_date_jp,
         template_path=template,
-        calibration_xlsx=workbook,
+        calibration_xlsxs=list(workbook),
         reference_csvs=list(reference),
         output_dir=output,
         setpoints=setpoints,

@@ -55,7 +55,7 @@ def test_run_calibration_writes_one_docx_per_sheet(
         test_date_jp="2026年4月14日",
         doc_date_jp="2026年4月15日",
         template_path=template_docx,
-        calibration_xlsx=workbook_xlsx,
+        calibration_xlsxs=[workbook_xlsx],
         reference_csvs=[reference_csv],
         output_dir=tmp_path / "out",
         setpoints=_SETPOINTS,

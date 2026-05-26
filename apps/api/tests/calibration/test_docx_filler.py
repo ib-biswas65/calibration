@@ -58,17 +58,18 @@ def test_find_results_table_locates_the_setpoint_table(template_docx):
 
 def test_fill_results_table_writes_each_row(template_docx, tmp_path):
     doc = Document(str(template_docx))
+    # Pick float values that have unambiguous 1-decimal representations.
     fill_results_table(doc, [
-        (-40.10, -40.05),
-        (5.02, 5.04),
-        (39.95, 40.01),
+        (-40.2, -40.1),
+        (5.1, 5.3),
+        (39.9, 40.2),
     ])
     out = tmp_path / "out.docx"
     doc.save(str(out))
     saved = Document(str(out))
     table, col_std, col_act, data_rows = find_results_table(saved)
-    for i, (std, act) in enumerate(["-40.10", "5.02", "39.95"]
-                                   and [("-40.10", "-40.05"), ("5.02", "5.04"), ("39.95", "40.01")]):
+    # Engine formats with 1 decimal place to match legacy Old Method output.
+    for i, (std, act) in enumerate([("-40.2", "-40.1"), ("5.1", "5.3"), ("39.9", "40.2")]):
         row = table.rows[data_rows[i]]
         assert std in row.cells[col_std].text
         assert act in row.cells[col_act].text
