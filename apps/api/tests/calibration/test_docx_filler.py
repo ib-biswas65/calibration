@@ -1,6 +1,10 @@
 from docx import Document
 
-from ite_api.calibration.docx_filler import replace_text_everywhere
+from ite_api.calibration.docx_filler import (
+    fill_results_table,
+    find_results_table,
+    replace_text_everywhere,
+)
 
 
 def test_replace_text_everywhere_updates_cert_number(template_docx, tmp_path):
@@ -42,3 +46,29 @@ def test_replace_text_everywhere_handles_dates(template_docx, tmp_path):
     assert "2026年4月15日" in body_text
     assert "2026年3月4日" not in body_text
     assert "2026年3月6日" not in body_text
+
+
+def test_find_results_table_locates_the_setpoint_table(template_docx):
+    doc = Document(str(template_docx))
+    table, col_std, col_act, data_rows = find_results_table(doc)
+    assert table is not None
+    assert col_std != col_act
+    assert len(data_rows) == 3
+
+
+def test_fill_results_table_writes_each_row(template_docx, tmp_path):
+    doc = Document(str(template_docx))
+    fill_results_table(doc, [
+        (-40.10, -40.05),
+        (5.02, 5.04),
+        (39.95, 40.01),
+    ])
+    out = tmp_path / "out.docx"
+    doc.save(str(out))
+    saved = Document(str(out))
+    table, col_std, col_act, data_rows = find_results_table(saved)
+    for i, (std, act) in enumerate(["-40.10", "5.02", "39.95"]
+                                   and [("-40.10", "-40.05"), ("5.02", "5.04"), ("39.95", "40.01")]):
+        row = table.rows[data_rows[i]]
+        assert std in row.cells[col_std].text
+        assert act in row.cells[col_act].text
