@@ -26,6 +26,9 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Test
+        env:
+          ITE_JWT_SECRET: ci-test-secret-not-real
+          ITE_ALLOWED_ORIGINS: http://localhost
         run: pytest -v
 
   web:

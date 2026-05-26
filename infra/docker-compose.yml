@@ -21,6 +21,8 @@ services:
     environment:
       ITE_ENV: ${ITE_ENV}
       ITE_DATABASE_URL: ${ITE_DATABASE_URL}
+      ITE_JWT_SECRET: ${ITE_JWT_SECRET}
+      ITE_ALLOWED_ORIGINS: ${ITE_ALLOWED_ORIGINS}
     depends_on:
       postgres:
         condition: service_healthy
