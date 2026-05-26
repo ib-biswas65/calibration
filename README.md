@@ -11,7 +11,33 @@ This repo is a monorepo:
 
 The legacy Flet desktop prototype lives in `src/` and `Old Method/` and is **not** part of the build.
 
-## Slice 1 (current): Auth + AppShell
+## Slice 2 (current): Calibration engine (CLI only)
+
+What works after this slice:
+
+- Everything from Slice 1.
+- New CLI: `ite-api run-calibration --workbook <xlsx> [--workbook <xlsx> ...] --reference <csv> [--reference <csv> ...] --template <docx> --output <dir> --test-date-jp 2026年4月14日 --doc-date-jp 2026年4月15日`
+- Output is one `.docx` certificate per sheet across all workbooks, written to `<dir>/`.
+- Supports any number of reference loggers (CSVs concatenated) and calibration workbooks.
+
+What doesn't work yet: no HTTP routes, no UI for triggering runs. Those arrive in Slice 3.
+
+## Engine smoke test
+
+```bash
+cd apps/api
+.venv/bin/ite-api run-calibration \
+  --workbook tests/fixtures/calibration/workbook.xlsx \
+  --reference tests/fixtures/calibration/reference.csv \
+  --template tests/fixtures/calibration/template.docx \
+  --output /tmp/ite-out \
+  --start-cert-no 0000001720 \
+  --test-date-jp 2026年4月14日 \
+  --doc-date-jp 2026年4月15日
+ls /tmp/ite-out/
+```
+
+## Slice 1: Auth + AppShell
 
 What works after this slice:
 
@@ -23,8 +49,6 @@ What works after this slice:
 - Lockout after 10 failed logins per email in 15 min.
 - Origin header check on all mutating routes.
 - CI runs lint + tests for both apps (api tests use `testcontainers` Postgres).
-
-What doesn't work yet: any calibration features. Those arrive in Slice 2 (engine) and Slice 3 (New Calibration end-to-end).
 
 ## First-time setup
 
