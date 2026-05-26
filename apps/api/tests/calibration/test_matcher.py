@@ -3,7 +3,11 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 
-from ite_api.calibration.matcher import find_ref_near_timestamp, find_reference_value
+from ite_api.calibration.matcher import (
+    find_ref_near_timestamp,
+    find_reference_value,
+    find_values_for_target,
+)
 
 
 def _df(rows):
@@ -42,3 +46,41 @@ def test_find_ref_near_timestamp():
     )
     assert ts == base + timedelta(minutes=2)
     assert val == 2.0
+
+
+def test_step2_direct_match():
+    base = datetime(2026, 4, 14, 10, 0, 0)
+    end = base + timedelta(minutes=10)
+    ref = _df([(base, 5.0), (base + timedelta(minutes=5), 5.0)])
+    cal = _df([(base + timedelta(seconds=30), 5.2), (base + timedelta(minutes=5), 4.0)])
+    ref_v, cal_v, adjusted = find_values_for_target(
+        cal, ref, target=5.0, time_start=base, time_end=end
+    )
+    assert ref_v == 5.0
+    assert cal_v == 5.2
+    assert adjusted is False
+
+
+def test_step3_fallback_when_no_direct_match():
+    base = datetime(2026, 4, 14, 10, 0, 0)
+    end = base + timedelta(minutes=10)
+    ref = _df([(base, 5.0)])
+    cal = _df([(base, 7.0)])
+    ref_v, cal_v, adjusted = find_values_for_target(
+        cal, ref, target=5.0, time_start=base, time_end=end
+    )
+    assert adjusted is True
+    assert cal_v == 7.0
+
+
+def test_empty_window_returns_target_as_ref():
+    base = datetime(2026, 4, 14, 10, 0, 0)
+    end = base + timedelta(minutes=10)
+    ref = _df([])
+    cal = _df([])
+    ref_v, cal_v, adjusted = find_values_for_target(
+        cal, ref, target=5.0, time_start=base, time_end=end
+    )
+    assert ref_v == 5.0
+    assert cal_v is None
+    assert adjusted is False

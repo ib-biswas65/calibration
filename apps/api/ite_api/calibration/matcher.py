@@ -46,3 +46,53 @@ def find_ref_near_timestamp(
     subset["time_diff"] = (subset.timestamp - cal_ts).abs()
     i = subset["time_diff"].idxmin()
     return float(subset.loc[i, "temp"]), subset.loc[i, "timestamp"].to_pydatetime()
+
+
+def find_values_for_target(
+    cal_df: pd.DataFrame,
+    ref_df: pd.DataFrame,
+    target: float,
+    time_start: datetime,
+    time_end: datetime,
+) -> tuple[float | None, float | None, bool]:
+    """Return (ref_value, cal_value, adjusted) per the 3-step algorithm.
+
+    `adjusted=True` indicates the result came from the step-3 fallback path.
+    """
+    cal_subset = _window(cal_df, time_start, time_end)
+    ref_subset = _window(ref_df, time_start, time_end)
+    if cal_subset.empty or ref_subset.empty:
+        return target, None, False
+
+    # Step 1
+    ref_val, ref_ts = find_reference_value(ref_subset, target, time_start, time_end)
+    if ref_val is None:
+        return target, None, False
+
+    # Step 2
+    near = cal_subset.loc[(cal_subset.temp - ref_val).abs() <= TOLERANCE].copy()
+    if not near.empty:
+        near["time_diff"] = (near.timestamp - ref_ts).abs()
+        i = near["time_diff"].idxmin()
+        return ref_val, float(near.loc[i, "temp"]), False
+
+    # Step 3a
+    cal_subset["diff_to_target"] = (cal_subset.temp - target).abs()
+    j = cal_subset["diff_to_target"].idxmin()
+    cal_val = float(cal_subset.loc[j, "temp"])
+    cal_ts = cal_subset.loc[j, "timestamp"].to_pydatetime()
+
+    # Step 3b/c
+    new_ref_val, _ = find_ref_near_timestamp(ref_subset, cal_ts, time_start, time_end)
+    if new_ref_val is not None and abs(cal_val - new_ref_val) <= TOLERANCE:
+        return new_ref_val, cal_val, True
+
+    # Step 3d
+    broad = ref_subset.loc[(ref_subset.temp - cal_val).abs() <= TOLERANCE]
+    if not broad.empty:
+        broad = broad.copy()
+        broad["diff"] = (broad.temp - cal_val).abs()
+        k = broad["diff"].idxmin()
+        return float(broad.loc[k, "temp"]), cal_val, True
+
+    return target, cal_val, True
