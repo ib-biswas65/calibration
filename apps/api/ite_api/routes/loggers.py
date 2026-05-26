@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ite_api.auth.dependencies import current_user
+from ite_api.auth.dependencies import require_role
 from ite_api.db.models import User
 from ite_api.db.models.calibration import Logger, LoggerResult
 from ite_api.db.session import get_session
@@ -30,7 +30,7 @@ def list_loggers(
     q: str | None = Query(default=None),
     limit: int = Query(default=50, le=200),
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     stmt = select(Logger).order_by(Logger.serial_no).limit(limit)
     if q:
@@ -52,7 +52,7 @@ def list_loggers(
 def get_logger(
     logger_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     lg = db.get(Logger, logger_id)
     if lg is None:

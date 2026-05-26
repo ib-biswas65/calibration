@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ite_api.auth.dependencies import current_user
+from ite_api.auth.dependencies import require_role
 from ite_api.db.models import User
 from ite_api.db.models.calibration import CalibrationRun, Logger, LoggerResult
 from ite_api.db.session import get_session
@@ -52,7 +52,7 @@ class OverviewResponse(BaseModel):
 @router.get("", response_model=OverviewResponse)
 def get_overview(
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     now = datetime.now(UTC)
     cutoff_30d = now - timedelta(days=30)

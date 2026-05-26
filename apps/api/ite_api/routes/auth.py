@@ -8,15 +8,15 @@ from sqlalchemy.orm import Session
 from ite_api.audit import write_audit
 from ite_api.auth.dependencies import current_user
 from ite_api.auth.lockout import is_locked_out, record_failed_attempt
-from ite_api.auth.passwords import verify_password
+from ite_api.auth.passwords import hash_password, verify_password
 from ite_api.auth.tokens import (
     create_access_token,
     create_refresh_token,
     hash_refresh_token,
 )
 from ite_api.config import get_settings
+from ite_api.db.models import PasswordReset, User
 from ite_api.db.models import Session as UserSession
-from ite_api.db.models import User
 from ite_api.db.session import get_session
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -120,3 +120,48 @@ def logout(
     out.delete_cookie(s.cookie_access_name, path="/")
     out.delete_cookie(s.cookie_refresh_name, path="/")
     return out
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(
+    body: ResetPasswordRequest,
+    response: Response,
+    db: Session = Depends(get_session),
+) -> Response:
+    if len(body.password) < 12:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters")
+
+    token_hash = hash_refresh_token(body.token)
+    pr = db.scalars(select(PasswordReset).where(PasswordReset.token_hash == token_hash)).first()
+    if pr is None or pr.used_at is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="invalid or already-used reset token")
+    if pr.expires_at < datetime.now(UTC):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="reset token has expired")
+
+    user = db.get(User, pr.user_id)
+    if user is None or user.disabled:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="user not found or disabled")
+
+    user.password_hash = hash_password(body.password)
+    pr.used_at = datetime.now(UTC)
+    write_audit(db, user_id=user.id, action="password.reset", detail=None)
+    db.commit()
+
+    s = get_settings()
+    refresh = create_refresh_token()
+    db.add(UserSession(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh),
+        expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
+    ))
+    db.commit()
+
+    access = create_access_token(user_id=str(user.id), role=user.role)
+    _set_auth_cookies(response, access=access, refresh=refresh)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response

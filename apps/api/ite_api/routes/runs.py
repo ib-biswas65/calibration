@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ite_api.audit import write_audit
-from ite_api.auth.dependencies import current_user, require_role
+from ite_api.auth.dependencies import require_role
 from ite_api.calibration.cal_loader import load_calibration_sheet, load_workbook
 from ite_api.calibration.engine import RunConfig, SetpointWindow, run_one_logger
 from ite_api.calibration.ref_loader import combine_refs, load_ref_auto
@@ -146,7 +146,7 @@ def list_runs(
     q: str | None = Query(default=None),
     limit: int = Query(default=50, le=200),
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     stmt = select(CalibrationRun).order_by(CalibrationRun.created_at.desc()).limit(limit)
     if status_filter:
@@ -203,7 +203,7 @@ def create_run(
 def get_run(
     run_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     run = _get_run_or_404(run_id, db)
     return _run_detail(run, db)
@@ -361,7 +361,7 @@ def process_run(
 def get_status(
     run_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     run = _get_run_or_404(run_id, db)
     msg = None
@@ -376,7 +376,7 @@ def get_status(
 def list_results(
     run_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     _get_run_or_404(run_id, db)
     results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run_id)).all()
@@ -398,7 +398,7 @@ def download_certificate(
     run_id: uuid.UUID,
     result_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     _get_run_or_404(run_id, db)
     result = db.get(LoggerResult, result_id)
@@ -417,7 +417,7 @@ def download_certificate(
 def get_audit(
     run_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     _get_run_or_404(run_id, db)
     entries = db.scalars(
@@ -430,7 +430,7 @@ def get_audit(
 def download_all_certs(
     run_id: uuid.UUID,
     db: Session = Depends(get_session),
-    user: User = current_user,
+    user: User = require_role("viewer"),
 ):
     run = _get_run_or_404(run_id, db)
     results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run_id)).all()

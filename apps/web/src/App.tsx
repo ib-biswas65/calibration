@@ -7,8 +7,9 @@ import { AppShell } from "./components/AppShell";
 import { ToastProvider } from "./components/Toast";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { CertificatePage } from "./pages/CertificatePage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { HistoryPage } from "./pages/HistoryPage";
-import { LoggerProfilePage } from "./pages/LoggerProfilePage";
+import { LoggersPage } from "./pages/LoggersPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewCalibrationPage } from "./pages/NewCalibrationPage";
 import { OverviewPage } from "./pages/OverviewPage";
@@ -26,6 +27,7 @@ export default function App() {
           <ToastProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
                 element={
                   <RequireAuth>
@@ -38,7 +40,7 @@ export default function App() {
                 <Route path="calibrations/:id" element={<RunDetailPage />} />
                 <Route path="upcoming" element={<UpcomingPage />} />
                 <Route path="new" element={<NewCalibrationPage />} />
-                <Route path="loggers" element={<LoggerProfilePage />} />
+                <Route path="loggers" element={<LoggersPage />} />
                 <Route path="certificate" element={<CertificatePage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="admin/users" element={<AdminUsersPage />} />
