@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from ite_api.config import get_settings
+from ite_api.routes.auth import router as auth_router
 
 
 def create_app() -> FastAPI:
@@ -11,6 +12,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    app.include_router(auth_router)
     app.state.settings = settings
     return app
 
