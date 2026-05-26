@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ite_api.auth.passwords import hash_password
 from ite_api.auth.tokens import create_refresh_token, hash_refresh_token
@@ -83,7 +83,7 @@ def test_expired_access_is_silently_rotated(client, db_session):
     db_session.add(UserSession(
         user_id=u.id,
         token_hash=hash_refresh_token(rt),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=14),
+        expires_at=datetime.now(UTC) + timedelta(days=14),
     ))
     db_session.commit()
     client.cookies.set("ite_at", "expired.garbage.token")

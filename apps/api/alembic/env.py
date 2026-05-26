@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from ite_api.config import get_settings
 from ite_api.db.base import Base
+import ite_api.db.models  # noqa: F401 — register models on Base.metadata
 
 config = context.config
 if config.config_file_name is not None:

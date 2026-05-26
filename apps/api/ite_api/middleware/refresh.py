@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -12,9 +11,9 @@ from ite_api.auth.tokens import (
     hash_refresh_token,
 )
 from ite_api.config import get_settings
+from ite_api.db import session as db_session_mod
 from ite_api.db.models import Session as UserSession
 from ite_api.db.models import User
-from ite_api.db import session as db_session_mod
 
 
 class RefreshMiddleware(BaseHTTPMiddleware):
@@ -68,7 +67,7 @@ class RefreshMiddleware(BaseHTTPMiddleware):
         token_hash = hash_refresh_token(presented_rt)
         with SessionLocal() as db:
             sess = db.query(UserSession).filter_by(token_hash=token_hash).one_or_none()
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if sess is None or sess.revoked_at is not None or sess.expires_at < now:
                 return None
             user = db.get(User, sess.user_id)

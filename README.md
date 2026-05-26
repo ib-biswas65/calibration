@@ -11,16 +11,41 @@ This repo is a monorepo:
 
 The legacy Flet desktop prototype lives in `src/` and `Old Method/` and is **not** part of the build.
 
-## Slice 0 (current): Skeleton
+## Slice 1 (current): Auth + AppShell
 
 What works after this slice:
 
-- `docker compose up` brings up Postgres + API + SPA + edge nginx.
-- `GET http://localhost/api/health` returns `{"status":"ok"}`.
-- `http://localhost/` shows a placeholder page.
-- CI runs lint + tests for both apps on every push.
+- Admin user created via CLI: `ite-api create-admin --email ... --full-name ... --password ...`
+- Login at `http://localhost/login` (email + password), session cookies set.
+- Authenticated routes show the AppShell (green sidebar + topbar) with placeholder pages.
+- `GET /api/auth/me` returns the current user; logout revokes the session.
+- Refresh middleware silently rotates the access token when it expires.
+- Lockout after 10 failed logins per email in 15 min.
+- Origin header check on all mutating routes.
+- CI runs lint + tests for both apps (api tests use `testcontainers` Postgres).
 
-What doesn't work yet: authentication, any pages, any DB tables. Those arrive in Slice 1.
+What doesn't work yet: any calibration features. Those arrive in Slice 2 (engine) and Slice 3 (New Calibration end-to-end).
+
+## First-time setup
+
+After `docker compose up`, apply migrations and create the first admin:
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file infra/.env exec api alembic upgrade head
+docker compose -f infra/docker-compose.yml --env-file infra/.env exec api \
+  ite-api create-admin --email you@ite.local --full-name "You" --password "at-least-twelve-chars"
+```
+
+Then log in at http://localhost/login.
+
+## End-to-end tests
+
+```bash
+cd infra && docker compose --env-file .env up -d --build
+# (apply migration + create admin as above)
+cd apps/web && BASE_URL=http://localhost npm run e2e
+cd ../../infra && docker compose --env-file .env down
+```
 
 ## Quickstart
 

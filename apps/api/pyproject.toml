@@ -7,7 +7,7 @@ dependencies = [
   "fastapi==0.115.6",
   "uvicorn[standard]==0.32.1",
   "pydantic==2.10.4",
-  "pydantic[email]==2.10.4",
+  "email-validator==2.2.0",
   "pydantic-settings==2.7.0",
   "sqlalchemy==2.0.36",
   "alembic==1.14.0",
@@ -46,3 +46,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# B008: Depends(...) in argument defaults is FastAPI's idiomatic pattern.
+# B017: pytest.raises(Exception) is intentional in token-decoding tests
+#       where any of several JWT exceptions are acceptable.
+ignore = ["B008", "B017"]

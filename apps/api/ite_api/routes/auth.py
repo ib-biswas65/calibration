@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr
@@ -78,9 +78,9 @@ def login(
     db.add(UserSession(
         user_id=user.id,
         token_hash=hash_refresh_token(refresh),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=s.refresh_token_days),
+        expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
     ))
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     write_audit(db, user_id=user.id, action="login", detail={"email": email})
     db.commit()
 
@@ -113,7 +113,7 @@ def logout(
             .one_or_none()
         )
         if sess and sess.revoked_at is None:
-            sess.revoked_at = datetime.now(timezone.utc)
+            sess.revoked_at = datetime.now(UTC)
             write_audit(db, user_id=sess.user_id, action="logout", detail=None)
             db.commit()
     out = Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ def record_failed_attempt(db: Session, *, email: str) -> None:
 
 def is_locked_out(db: Session, *, email: str) -> bool:
     s = get_settings()
-    window_start = datetime.now(timezone.utc) - timedelta(minutes=s.lockout_window_minutes)
+    window_start = datetime.now(UTC) - timedelta(minutes=s.lockout_window_minutes)
     stmt = (
         select(func.count(AuditLog.id))
         .where(AuditLog.action == "login.failed")
