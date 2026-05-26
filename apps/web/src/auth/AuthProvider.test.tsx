@@ -12,7 +12,7 @@ function Probe() {
 
 describe("AuthProvider", () => {
   it("shows loading then anon on 401", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({}),
@@ -27,7 +27,7 @@ describe("AuthProvider", () => {
   });
 
   it("shows user when /me returns 200", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({ id: "1", email: "x@y", full_name: "X", role: "admin" }),

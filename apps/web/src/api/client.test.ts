@@ -4,7 +4,7 @@ import { apiFetch, ApiError } from "./client";
 
 describe("apiFetch", () => {
   it("returns parsed JSON on 200", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({ status: "ok" }),
@@ -14,7 +14,7 @@ describe("apiFetch", () => {
   });
 
   it("throws ApiError on non-OK", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({ detail: "nope" }),
@@ -28,7 +28,7 @@ describe("apiFetch", () => {
       status: 200,
       json: async () => ({}),
     } as Response);
-    global.fetch = f;
+    globalThis.fetch = f;
     await apiFetch("/api/health");
     expect(f).toHaveBeenCalledWith(
       "/api/health",
@@ -42,7 +42,7 @@ describe("apiFetch", () => {
       status: 204,
       json: async () => ({}),
     } as Response);
-    global.fetch = f;
+    globalThis.fetch = f;
     await apiFetch("/api/auth/login", { method: "POST", json: { email: "a@b", password: "p" } });
     const call = f.mock.calls[0];
     expect(call[1].body).toBe(JSON.stringify({ email: "a@b", password: "p" }));

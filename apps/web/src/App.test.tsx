@@ -1,11 +1,16 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
 describe("App", () => {
-  it("renders the product name", () => {
+  it("renders login page when unauthenticated", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false, status: 401, json: async () => ({}),
+    } as Response);
     render(<App />);
-    expect(screen.getByText("ITE Calibration")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/sign in to continue/i)).toBeInTheDocument(),
+    );
   });
 });

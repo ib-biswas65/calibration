@@ -18,7 +18,7 @@ function wrap() {
 
 describe("LoginPage", () => {
   it("shows email + password fields and a submit button", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false, status: 401, json: async () => ({}),
     } as Response);
     wrap();
@@ -28,7 +28,7 @@ describe("LoginPage", () => {
   });
 
   it("shows validation error for invalid email", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false, status: 401, json: async () => ({}),
     } as Response);
     wrap();
