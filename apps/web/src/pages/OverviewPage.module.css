@@ -1,13 +1,12 @@
-.page {
-  padding: var(--s-6);
-  max-width: 1100px;
-}
+.page { padding: var(--s-6); max-width: 1100px; }
 
 .heading {
-  margin: 0 0 var(--s-5);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--c-text);
+  margin: 0 0 var(--s-6);
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
 }
 
 .tiles {
@@ -17,37 +16,26 @@
   margin-bottom: var(--s-6);
 }
 
-.rails {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-5);
-}
-
-@media (max-width: 720px) {
-  .rails { grid-template-columns: 1fr; }
-}
+.rails { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); }
+@media (max-width: 720px) { .rails { grid-template-columns: 1fr; } }
 
 .rail {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: var(--s-5);
 }
 
 .railTitle {
-  margin: 0 0 var(--s-3);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--c-text-soft);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
+  margin: 0 0 var(--s-4);
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+.list { list-style: none; margin: 0; padding: 0; }
 
 .item {
   display: flex;
@@ -57,40 +45,21 @@
   border-bottom: 1px solid var(--c-border);
   cursor: pointer;
   gap: var(--s-3);
+  transition: background 0.1s;
 }
-
 .item:last-child { border-bottom: none; }
 .item:hover { background: var(--c-accent-50); margin: 0 calc(-1 * var(--s-5)); padding: var(--s-3) var(--s-5); }
 
-.itemMain {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-width: 0;
-}
-
+.itemMain { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .batchName {
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 500;
   color: var(--c-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.itemSub { font-size: 12px; color: var(--c-text-mute); white-space: nowrap; }
 
-.itemSub {
-  font-size: 0.75rem;
-  color: var(--c-text-mute);
-  white-space: nowrap;
-}
-
-.empty {
-  color: var(--c-text-mute);
-  font-size: 0.875rem;
-  padding: var(--s-3) 0;
-}
-
-.loading {
-  padding: var(--s-6);
-  color: var(--c-text-soft);
-}
+.empty   { color: var(--c-text-mute); font-size: 14px; padding: var(--s-3) 0; }
+.loading { padding: var(--s-6); color: var(--c-text-mute); }

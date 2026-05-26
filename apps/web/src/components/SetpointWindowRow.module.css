@@ -5,49 +5,44 @@
   padding: var(--s-3) 0;
   border-bottom: 1px solid var(--c-border);
 }
-
 .row:last-child { border-bottom: none; }
 
 .target {
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--c-accent-700);
+  color: var(--color-boardroom-navy);
   width: 60px;
   flex-shrink: 0;
 }
 
-.inputs {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
+.inputs { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--c-text-mute);
 }
-
 .field input {
-  font-size: 0.875rem;
-  padding: var(--s-1) var(--s-2);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  background: var(--c-surface);
+  font-size: 13px;
+  padding: 5px 0;
+  border: none;
+  border-bottom: 1px solid var(--color-input-border);
+  background: transparent;
   color: var(--c-text);
+  outline: none;
 }
+.field input:focus { border-bottom-color: var(--color-brand-electric); }
 
 .arrow { color: var(--c-text-mute); }
 
 .duration {
-  font-size: 0.75rem;
-  color: var(--c-accent-600);
+  font-size: 12px;
+  color: var(--color-brand-electric);
   font-weight: 500;
   background: var(--c-accent-50);
-  padding: 2px 8px;
-  border-radius: 9999px;
+  padding: 2px 10px;
+  border-radius: var(--radius-badge);
 }

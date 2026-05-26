@@ -1,41 +1,33 @@
-.page {
-  padding: var(--s-6);
-  max-width: 900px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-}
+.page { padding: var(--s-6); max-width: 900px; display: flex; flex-direction: column; gap: var(--s-5); }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+.header { display: flex; align-items: center; justify-content: space-between; }
 
 .heading {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--c-text);
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
 }
 
 .btnPrimary {
-  background: var(--c-accent-600);
+  background: var(--color-brand-electric);
   color: #fff;
   border: none;
-  border-radius: var(--radius-md);
-  padding: var(--s-2) var(--s-5);
-  font-size: 0.875rem;
-  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: 10px var(--s-5);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s;
 }
-
 .btnPrimary:hover { background: var(--c-accent-700); }
 
+/* ── Invite form ─────────────────────────────────────────────────── */
 .inviteForm {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: var(--s-5);
   display: flex;
   flex-direction: column;
@@ -47,73 +39,80 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 500;
   color: var(--c-text-soft);
 }
 
-.field input, .field select {
-  padding: var(--s-2) var(--s-3);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  background: var(--c-surface);
+.field input {
+  padding: 9px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  background: transparent;
   color: var(--c-text);
+  outline: none;
+}
+.field input:focus { border-bottom-color: var(--color-brand-electric); }
+
+.field select {
+  padding: 9px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  background: transparent;
+  color: var(--c-text);
+  outline: none;
 }
 
+/* ── Setup URL box ────────────────────────────────────────────────── */
 .setupUrl {
   background: var(--c-accent-50);
-  border: 1px solid var(--c-accent-300);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-accent-100);
+  border-radius: var(--radius-card);
   padding: var(--s-3);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  font-size: 0.8rem;
+  font-size: 13px;
 }
-
 .setupUrl code {
   font-family: var(--font-mono);
   word-break: break-all;
-  color: var(--c-accent-700);
+  color: var(--color-brand-electric);
 }
 
+/* ── Users table ─────────────────────────────────────────────────── */
 .table {
   width: 100%;
   border-collapse: collapse;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  font-size: 0.875rem;
+  font-size: 14px;
 }
-
 .table th {
   text-align: left;
   padding: var(--s-3) var(--s-4);
-  font-size: 0.75rem;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--c-text-mute);
   border-bottom: 1px solid var(--c-border);
   background: var(--c-bg);
 }
-
-.table td {
-  padding: var(--s-3) var(--s-4);
-  border-bottom: 1px solid var(--c-border);
-  color: var(--c-text);
-}
-
+.table td { padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-border); color: var(--c-text); }
 .table tbody tr:last-child td { border-bottom: none; }
-
 .disabled td { color: var(--c-text-mute); }
 
 .roleSelect {
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--s-2);
-  font-size: 0.8rem;
+  border-radius: var(--radius-badge);
+  padding: 3px var(--s-2);
+  font-size: 13px;
   background: var(--c-surface);
   color: var(--c-text);
 }
@@ -121,11 +120,12 @@
 .toggleBtn {
   background: none;
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--s-3);
-  font-size: 0.75rem;
+  border-radius: var(--radius-pill);
+  padding: 3px var(--s-3);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   color: var(--c-text-soft);
+  transition: border-color 0.12s, color 0.12s;
 }
-
-.toggleBtn:hover { border-color: var(--c-accent-500); color: var(--c-accent-600); }
+.toggleBtn:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }

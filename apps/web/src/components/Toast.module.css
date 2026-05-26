@@ -10,8 +10,8 @@
 
 .toast {
   padding: var(--s-3) var(--s-5);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
   font-weight: 500;
   box-shadow: var(--shadow-2);
   animation: slideIn 0.2s ease;
@@ -23,6 +23,6 @@
   to   { transform: translateX(0);    opacity: 1; }
 }
 
-.success { background: var(--c-accent-600); color: #fff; }
-.error   { background: var(--c-fail);       color: #fff; }
-.info    { background: var(--c-text);        color: #fff; }
+.success { background: var(--color-boardroom-navy); color: #fff; }
+.error   { background: var(--c-fail);               color: #fff; }
+.info    { background: var(--color-brand-electric);  color: #fff; }

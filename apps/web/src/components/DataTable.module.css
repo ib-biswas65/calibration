@@ -1,23 +1,23 @@
 .wrapper {
   overflow-x: auto;
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   background: var(--c-surface);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 
 .table th {
   text-align: left;
   padding: var(--s-3) var(--s-4);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--c-text-mute);
   border-bottom: 1px solid var(--c-border);
   background: var(--c-bg);
@@ -29,17 +29,10 @@
   color: var(--c-text);
 }
 
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
+.table tbody tr:last-child td { border-bottom: none; }
 
-.clickable {
-  cursor: pointer;
-}
-
-.clickable:hover td {
-  background: var(--c-accent-50);
-}
+.clickable { cursor: pointer; }
+.clickable:hover td { background: var(--c-accent-50); }
 
 .empty {
   text-align: center;

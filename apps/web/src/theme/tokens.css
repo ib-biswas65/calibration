@@ -1,31 +1,69 @@
 :root {
-  --c-accent-50:  #ecfdf5;
-  --c-accent-100: #d1fae5;
-  --c-accent-300: #6ee7b7;
-  --c-accent-500: #10b981;
-  --c-accent-600: #059669;
-  --c-accent-700: #047857;
-  --c-accent-900: #064e3b;
+  /* ── Officevibe brand palette ─────────────────────────────────────── */
+  --color-boardroom-navy:   #0c1754;
+  --color-brand-electric:   #2545ff;
+  --color-lilac-accent:     #d9d4ff;
+  --color-feedback-yellow:  #ffc13a;
+  --color-soft-off-white:   #f9f8f6;
+  --color-pure-white:       #ffffff;
+  --color-pitch-black:      #171417;
+  --color-medium-gray:      #222222;
+  --color-light-cool-gray:  #eaebf8;
+  --color-input-border:     #cccccc;
+  --color-accent-orange:    #ff5b22;
 
-  --c-bg:        #f7faf9;
+  /* ── Semantic aliases (used throughout modules) ───────────────────── */
+  /* Electric shades */
+  --c-accent-50:  #eef0ff;
+  --c-accent-100: #d9d4ff;   /* lilac */
+  --c-accent-300: #8899ff;
+  --c-accent-500: #2545ff;   /* brand electric */
+  --c-accent-600: #2545ff;   /* primary CTA */
+  --c-accent-700: #1a35e0;   /* hover */
+  --c-accent-900: #0c1754;   /* boardroom navy — sidebar */
+
+  /* Surface */
+  --c-bg:        #f9f8f6;    /* soft off-white — page bg */
   --c-surface:   #ffffff;
-  --c-border:    #e5ebe9;
-  --c-text:      #0f1f1a;
-  --c-text-soft: #5a6b66;
-  --c-text-mute: #8a9994;
+  --c-border:    #eaebf8;    /* light cool gray */
 
-  --c-pass: var(--c-accent-600);
-  --c-warn: #d97706;
+  /* Text */
+  --c-text:      #171417;    /* pitch black */
+  --c-text-soft: #222222;    /* medium gray */
+  --c-text-mute: #6b7280;
+
+  /* Status */
+  --c-pass: #059669;
+  --c-warn: #ffc13a;         /* feedback yellow */
   --c-fail: #b91c1c;
-  --c-info: #1d4ed8;
+  --c-info: #2545ff;         /* brand electric */
 
-  --font-sans: "IBM Plex Sans", "Segoe UI", "San Francisco", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* ── Typography ──────────────────────────────────────────────────── */
+  --font-sans:    'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: 'Inter', Arial, sans-serif;           /* Abcfavoritvariable substitute */
+  --font-accent:  Georgia, 'Times New Roman', serif;    /* Martinaplantijn substitute — italic */
+  --font-mono:    ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 
-  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
-  --s-5: 24px; --s-6: 32px; --s-8: 48px;
+  /* ── Spacing (8px base) ──────────────────────────────────────────── */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3:  12px;
+  --s-4:  16px;
+  --s-5:  24px;
+  --s-6:  32px;
+  --s-8:  48px;
+  --s-10: 64px;
 
-  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
-  --shadow-1: 0 1px 2px rgba(15,31,26,.06);
-  --shadow-2: 0 4px 12px rgba(15,31,26,.08);
+  /* ── Border radius ───────────────────────────────────────────────── */
+  --radius-input:  0px;       /* flat inputs */
+  --radius-sm:     4px;
+  --radius-md:     8px;
+  --radius-badge:  16px;      /* badges */
+  --radius-card:   16px;      /* cards */
+  --radius-lg:     16px;      /* alias used in modules */
+  --radius-pill:   100px;     /* buttons */
+
+  /* ── Shadows (Officevibe: no hard shadows, subtle only) ──────────── */
+  --shadow-1: 0 1px 3px rgba(12,23,84,.06);
+  --shadow-2: 0 4px 16px rgba(12,23,84,.08);
 }

@@ -1,37 +1,38 @@
 .tile {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: var(--s-5) var(--s-6);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  box-shadow: var(--shadow-1);
   min-width: 140px;
 }
 
 .label {
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 500;
   color: var(--c-text-mute);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
 }
 
 .value {
+  font-family: var(--font-heading);
   font-size: 2rem;
-  font-weight: 700;
-  color: var(--c-text);
+  font-weight: 500;
+  color: var(--color-boardroom-navy);
   line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .unit {
   font-size: 1rem;
   font-weight: 400;
-  color: var(--c-text-soft);
+  color: var(--c-text-mute);
   margin-left: 4px;
 }
 
-.warn .value { color: var(--c-warn); }
-.fail .value  { color: var(--c-fail); }
-.pass .value  { color: var(--c-pass); }
+.warn .value { color: var(--color-feedback-yellow); }
+.fail .value { color: var(--c-fail); }
+.pass .value { color: var(--c-pass); }
