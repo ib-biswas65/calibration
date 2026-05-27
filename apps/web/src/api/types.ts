@@ -53,6 +53,8 @@ export interface RunSummary {
   created_at: string;
   completed_at: string | null;
   logger_count: number | null;
+  pass_rate: number | null;
+  max_deviation_c: number | null;
 }
 
 export interface RunDetail {
