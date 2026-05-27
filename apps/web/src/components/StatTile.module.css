@@ -6,7 +6,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  min-width: 140px;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
 }
 
 .label {
