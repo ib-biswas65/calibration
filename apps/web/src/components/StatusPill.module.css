@@ -16,3 +16,7 @@
 .pass       { background: #d1fae5;                       color: #065f46; }
 .fail       { background: #fee2e2;                       color: var(--c-fail); }
 .adjusted   { background: #fef3c7;                       color: #92400e; }
+
+.pulsing {
+  animation: processingPulse 1.8s ease-in-out infinite;
+}

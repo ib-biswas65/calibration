@@ -16,9 +16,8 @@ interface Props {
 }
 
 export function StatusPill({ value }: Props) {
-  return (
-    <span className={`${styles.pill} ${styles[value] ?? ""}`}>
-      {LABELS[value] ?? value}
-    </span>
-  );
+  const cls = [styles.pill, styles[value] ?? "", value === "processing" ? styles.pulsing : ""]
+    .filter(Boolean)
+    .join(" ");
+  return <span className={cls}>{LABELS[value] ?? value}</span>;
 }

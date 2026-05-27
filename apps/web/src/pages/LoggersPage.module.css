@@ -1,4 +1,4 @@
-.page { padding: var(--s-6); max-width: 900px; }
+.page { padding: var(--s-6); width: 100%; animation: fadeSlideUp var(--transition-slow) both; }
 
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-5); }
 
