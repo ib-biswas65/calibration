@@ -1,24 +1,69 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../api/client";
-import type { RunDetail } from "../api/types";
+import type { LoggerResult, RunDetail } from "../api/types";
 import { StatusPill } from "../components/StatusPill";
 import styles from "./RunDetailPage.module.css";
 
-type Tab = "loggers" | "setpoints" | "conditions" | "audit";
+type ViewMode = "table" | "cards";
 
 function fmt(dt: string) {
-  return new Date(dt).toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+  return new Date(dt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function DevBar({ value, withinTol }: { value: number | null; withinTol: boolean }) {
+  if (value === null) return <span className={styles.muted}>—</span>;
+  const w = Math.min(Math.abs(value) / 2.0 * 80, 80);
+  return (
+    <div className={styles.devWrap}>
+      <div
+        className={withinTol ? styles.devBarPass : styles.devBarFail}
+        style={{ width: `${w}px` }}
+      />
+      <span className={withinTol ? styles.devValPass : styles.devValFail}>
+        {value.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
+function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
+  const isFail = result.verdict === "fail";
+  return (
+    <div className={`${styles.card} ${isFail ? styles.cardFail : ""}`}>
+      <div className={styles.cardTop}>
+        <span className={`${styles.certNo} ${isFail ? styles.certNoFail : ""}`}>
+          {result.cert_no ? `No. ${result.cert_no}` : "No cert"}
+        </span>
+        <StatusPill value={result.verdict} />
+      </div>
+      <div className={styles.cardLogger}>{result.sheet_name}</div>
+      <div className={styles.cardBottom}>
+        <span className={`${styles.cardDev} ${isFail ? styles.cardDevFail : ""}`}>
+          {result.max_deviation_c !== null ? `${result.max_deviation_c.toFixed(2)}°C max` : "—"}
+        </span>
+        {result.cert_no && (
+          <a
+            href={`/api/runs/${runId}/results/${result.id}/certificate`}
+            download
+            className={styles.dlBtn}
+            onClick={(e) => e.stopPropagation()}
+          >
+            ↓
+          </a>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const [tab, setTab] = useState<Tab>("loggers");
+  const [view, setView] = useState<ViewMode>("table");
+  const [search, setSearch] = useState("");
+  const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail">("");
 
   const { data: run, isLoading, error } = useQuery<RunDetail>({
     queryKey: ["run", id],
@@ -29,22 +74,64 @@ export function RunDetailPage() {
     },
   });
 
+  const filtered = useMemo(() => {
+    if (!run) return [];
+    const q = search.toLowerCase();
+    return run.results.filter((r) => {
+      const matchSearch =
+        !q ||
+        (r.cert_no?.toLowerCase().includes(q) ?? false) ||
+        r.sheet_name.toLowerCase().includes(q);
+      const matchVerdict = !verdictFilter || r.verdict === verdictFilter;
+      return matchSearch && matchVerdict;
+    });
+  }, [run, search, verdictFilter]);
+
+  const stats = useMemo(() => {
+    if (!run || run.results.length === 0) return null;
+    const passed = run.results.filter((r) => r.verdict === "pass").length;
+    const failed = run.results.filter((r) => r.verdict === "fail").length;
+    const total = run.results.length;
+    const devs = run.results
+      .map((r) => r.max_deviation_c)
+      .filter((d): d is number => d !== null);
+    return {
+      passed,
+      failed,
+      passRate: total > 0 ? ((passed / total) * 100).toFixed(1) : null,
+      maxDev: devs.length > 0 ? Math.max(...devs).toFixed(2) : null,
+    };
+  }, [run]);
+
   if (isLoading) return <div className={styles.loading}>Loading…</div>;
   if (error || !run) return <div className={styles.loading}>Run not found.</div>;
 
   return (
     <div className={styles.page}>
+      {/* ── Header ── */}
       <div className={styles.header}>
         <button className={styles.back} onClick={() => nav("/calibrations")}>← History</button>
-        <div className={styles.headerMain}>
-          <h2 className={styles.heading}>{run.batch_name}</h2>
-          <StatusPill value={run.status} />
+        <div className={styles.headerRow}>
+          <div className={styles.headerLeft}>
+            <h2 className={styles.heading}>{run.batch_name}</h2>
+            <div className={styles.headMeta}>
+              <StatusPill value={run.status} />
+              <span className={styles.metaDot}>·</span>
+              <span className={styles.metaText}>{fmt(run.created_at)}</span>
+              {run.results.length > 0 && (
+                <>
+                  <span className={styles.metaDot}>·</span>
+                  <span className={styles.metaText}>{run.results.length} loggers</span>
+                </>
+              )}
+            </div>
+          </div>
+          {run.status === "complete" && (
+            <a href={`/api/runs/${id}/results.zip`} download className={styles.btnPrimary}>
+              ↓ Download all (.zip)
+            </a>
+          )}
         </div>
-        {run.status === "complete" && (
-          <a href={`/api/runs/${id}/results.zip`} download className={styles.btnPrimary}>
-            Download all (.zip)
-          </a>
-        )}
       </div>
 
       {run.failure_reason && (
@@ -53,141 +140,169 @@ export function RunDetailPage() {
         </div>
       )}
 
-      <div className={styles.tabs}>
-        {(["loggers", "setpoints", "conditions", "audit"] as Tab[]).map((t) => (
-          <button key={t} className={`${styles.tab} ${tab === t ? styles.activeTab : ""}`} onClick={() => setTab(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {tab === "loggers" && (
-        <div className={styles.tabContent}>
-          {run.results.length === 0 ? (
-            <p className={styles.empty}>No results yet.</p>
-          ) : (
-            <table className={styles.resultsTable}>
-              <thead>
-                <tr>
-                  <th>Serial / Sheet</th>
-                  <th>Verdict</th>
-                  <th>Max dev. (°C)</th>
-                  <th>Cert no.</th>
-                  {run.results[0]?.per_setpoint.map((sp) => (
-                    <th key={sp.target_c}>{sp.target_c > 0 ? "+" : ""}{sp.target_c}°C</th>
-                  ))}
-                  <th>Download</th>
-                </tr>
-              </thead>
-              <tbody>
-                {run.results.map((r) => (
-                  <tr key={r.id}>
-                    <td className={styles.serial}>{r.sheet_name}</td>
-                    <td><StatusPill value={r.verdict} /></td>
-                    <td>{r.max_deviation_c != null ? r.max_deviation_c.toFixed(3) : "—"}</td>
-                    <td>{r.cert_no ?? "—"}</td>
-                    {r.per_setpoint.map((sp) => (
-                      <td key={sp.target_c} className={sp.within_tol ? styles.cellPass : styles.cellFail}>
-                        {sp.dev_c != null ? sp.dev_c.toFixed(3) : "—"}
-                      </td>
-                    ))}
-                    <td>
-                      {run.status === "complete" && (
-                        <a href={`/api/runs/${id}/results/${r.id}/certificate`} download className={styles.dlLink}>
-                          .docx
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {tab === "setpoints" && (
-        <div className={styles.tabContent}>
-          <table className={styles.simpleTable}>
-            <thead>
-              <tr><th>Target (°C)</th><th>Window start</th><th>Window end</th></tr>
-            </thead>
-            <tbody>
-              {run.setpoints.map((sp) => (
-                <tr key={sp.target_c}>
-                  <td>{sp.target_c > 0 ? "+" : ""}{sp.target_c}°C</td>
-                  <td>{fmt(sp.start_at)}</td>
-                  <td>{fmt(sp.end_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className={styles.metaRow}>
-            <span><strong>Threshold:</strong> ±{run.threshold_c}°C</span>
-            <span><strong>Testing:</strong> {fmt(run.testing_start)} → {fmt(run.testing_end)}</span>
+      {/* ── Stat strip ── */}
+      {stats && (
+        <div className={styles.statStrip}>
+          <div className={styles.statItem}>
+            <span className={`${styles.statVal} ${styles.statPass}`}>{stats.passed}</span>
+            <span className={styles.statLbl}>Pass</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.statItem}>
+            <span className={`${styles.statVal} ${stats.failed > 0 ? styles.statFail : ""}`}>{stats.failed}</span>
+            <span className={styles.statLbl}>Fail</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.statItem}>
+            <span className={styles.statVal}>{stats.passRate ?? "—"}%</span>
+            <span className={styles.statLbl}>Pass rate</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.statItem}>
+            <span className={styles.statVal}>{stats.maxDev ? `${stats.maxDev}°C` : "—"}</span>
+            <span className={styles.statLbl}>Max dev.</span>
           </div>
         </div>
       )}
 
-      {tab === "conditions" && (
-        <div className={styles.tabContent}>
-          <h4 className={styles.subHeading}>Reference files</h4>
-          {run.reference_files.length === 0 ? (
-            <p className={styles.empty}>No reference files.</p>
-          ) : (
-            <ul className={styles.fileList}>
-              {run.reference_files.map((f) => (
-                <li key={f.id}>
-                  <span className={styles.fileName}>{f.original_name}</span>
-                  <code className={styles.sha}>{f.sha256.slice(0, 12)}…</code>
-                </li>
+      {/* ── Toolbar ── */}
+      <div className={styles.toolbar}>
+        <input
+          className={styles.search}
+          placeholder="Search cert no. or logger serial…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          className={`${styles.filterPill} ${verdictFilter === "" ? styles.filterActive : ""}`}
+          onClick={() => setVerdictFilter("")}
+        >All</button>
+        <button
+          className={`${styles.filterPill} ${verdictFilter === "pass" ? styles.filterActive : ""}`}
+          onClick={() => setVerdictFilter("pass")}
+        >Pass</button>
+        <button
+          className={`${styles.filterPill} ${verdictFilter === "fail" ? styles.filterActive : ""}`}
+          onClick={() => setVerdictFilter("fail")}
+        >Fail</button>
+        <div className={styles.viewToggle}>
+          <button
+            className={`${styles.vtBtn} ${view === "table" ? styles.vtActive : ""}`}
+            onClick={() => setView("table")}
+          >≡ Table</button>
+          <button
+            className={`${styles.vtBtn} ${view === "cards" ? styles.vtActive : ""}`}
+            onClick={() => setView("cards")}
+          >⊞ Cards</button>
+        </div>
+      </div>
+
+      {/* ── Content: table or cards ── */}
+      <div className={styles.viewArea}>
+        {run.results.length === 0 ? (
+          <p className={styles.empty}>No results yet.</p>
+        ) : view === "table" ? (
+          <div key="table" className={`${styles.tableWrap} ${styles.viewIn}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Cert no.</th>
+                  <th>Logger serial</th>
+                  <th>Verdict</th>
+                  {run.results[0]?.per_setpoint.map((sp) => (
+                    <th key={sp.target_c}>{sp.target_c > 0 ? "+" : ""}{sp.target_c}°C</th>
+                  ))}
+                  <th>Max dev.</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={5 + (run.results[0]?.per_setpoint.length ?? 0)} className={styles.empty}>No results match</td></tr>
+                ) : (
+                  filtered.map((r) => (
+                    <tr key={r.id} className={r.verdict === "fail" ? styles.rowFail : styles.rowPass}>
+                      <td className={`${styles.certNoCell} ${r.verdict === "fail" ? styles.certNoFail : ""}`}>
+                        {r.cert_no ?? "—"}
+                      </td>
+                      <td className={styles.serialCell}>{r.sheet_name}</td>
+                      <td><StatusPill value={r.verdict} /></td>
+                      {r.per_setpoint.map((sp) => (
+                        <td key={sp.target_c}>
+                          <DevBar value={sp.dev_c} withinTol={sp.within_tol} />
+                        </td>
+                      ))}
+                      <td className={r.verdict === "fail" ? styles.devValFail : styles.devValPass}>
+                        {r.max_deviation_c !== null ? `${r.max_deviation_c.toFixed(2)}°C` : "—"}
+                      </td>
+                      <td>
+                        {r.cert_no && (
+                          <a
+                            href={`/api/runs/${id}/results/${r.id}/certificate`}
+                            download
+                            className={styles.dlBtn}
+                          >↓</a>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div key="cards" className={`${styles.cardGrid} ${styles.viewIn}`}>
+            {filtered.length === 0 ? (
+              <p className={styles.empty}>No results match</p>
+            ) : (
+              filtered.map((r) => <CertCard key={r.id} result={r} runId={id!} />)
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Batch configuration (collapsible) ── */}
+      <details className={styles.batchConfig}>
+        <summary className={styles.batchConfigSummary}>Batch configuration</summary>
+        <div className={styles.batchConfigBody}>
+          <div className={styles.cfgGrid}>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Test date</span>
+              <span>{run.test_date_jp}</span>
+            </div>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Cert date</span>
+              <span>{run.doc_date_jp}</span>
+            </div>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Threshold</span>
+              <span>±{run.threshold_c}°C</span>
+            </div>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Start cert no.</span>
+              <span>{run.start_cert_no}</span>
+            </div>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Reference files</span>
+              <span>{run.reference_files.map((f) => f.original_name).join(", ") || "—"}</span>
+            </div>
+            <div className={styles.cfgItem}>
+              <span className={styles.cfgLabel}>Calibration file</span>
+              <span>{run.calibration_file?.original_name ?? "—"}</span>
+            </div>
+          </div>
+          <div className={styles.cfgSetpoints}>
+            <span className={styles.cfgLabel}>Setpoints</span>
+            <div className={styles.setpointList}>
+              {run.setpoints.map((sp: { target_c: number; start_at: string; end_at: string }) => (
+                <span key={sp.target_c} className={styles.setpointChip}>
+                  {sp.target_c > 0 ? "+" : ""}{sp.target_c}°C
+                </span>
               ))}
-            </ul>
-          )}
-          <h4 className={styles.subHeading}>Calibration workbook</h4>
-          {run.calibration_file ? (
-            <ul className={styles.fileList}>
-              <li>
-                <span className={styles.fileName}>{run.calibration_file.original_name}</span>
-                <code className={styles.sha}>{run.calibration_file.sha256.slice(0, 12)}…</code>
-              </li>
-            </ul>
-          ) : (
-            <p className={styles.empty}>No workbook uploaded.</p>
-          )}
+            </div>
+          </div>
         </div>
-      )}
-
-      {tab === "audit" && (
-        <div className={styles.tabContent}>
-          <AuditTrail runId={id!} />
-        </div>
-      )}
+      </details>
     </div>
-  );
-}
-
-function AuditTrail({ runId }: { runId: string }) {
-  const { data = [], isLoading } = useQuery<{ action: string; at: string; detail: unknown }[]>({
-    queryKey: ["audit", runId],
-    queryFn: () => apiFetch(`/api/runs/${runId}/audit`),
-    retry: false,
-  });
-
-  if (isLoading) return <p>Loading…</p>;
-
-  return (
-    <ul className={styles.auditList}>
-      {data.length === 0 ? (
-        <li className={styles.empty}>No audit entries.</li>
-      ) : (
-        data.map((entry, i) => (
-          <li key={i} className={styles.auditEntry}>
-            <code className={styles.auditAction}>{entry.action}</code>
-            <span className={styles.auditAt}>{new Date(entry.at).toLocaleString("en-GB")}</span>
-          </li>
-        ))
-      )}
-    </ul>
   );
 }
