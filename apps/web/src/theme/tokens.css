@@ -66,4 +66,20 @@
   /* ── Shadows (Officevibe: no hard shadows, subtle only) ──────────── */
   --shadow-1: 0 1px 3px rgba(12,23,84,.06);
   --shadow-2: 0 4px 16px rgba(12,23,84,.08);
+
+  /* ── Transitions ─────────────────────────────────────────────────── */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+}
+
+/* ── Global keyframes ─────────────────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes processingPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
 }
