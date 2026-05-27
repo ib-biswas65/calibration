@@ -1,9 +1,10 @@
 .page {
   padding: var(--s-6);
-  max-width: 1100px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
+  animation: fadeSlideUp var(--transition-slow) both;
 }
 
 .header { display: flex; align-items: center; justify-content: space-between; }
@@ -14,6 +15,7 @@
   font-weight: 500;
   letter-spacing: -0.03em;
   color: var(--color-boardroom-navy);
+  margin: 0;
 }
 
 .btnPrimary {
@@ -25,7 +27,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
 }
 .btnPrimary:hover { background: var(--c-accent-700); }
 
@@ -37,11 +39,11 @@
   padding: 9px 12px;
   border: none;
   border-bottom: 1.5px solid var(--color-input-border);
-  border-radius: var(--radius-input);
   font-size: 14px;
   background: transparent;
   color: var(--c-text);
   outline: none;
+  transition: border-bottom-color var(--transition-fast);
 }
 .search:focus { border-bottom-color: var(--color-brand-electric); }
 
@@ -54,35 +56,75 @@
   color: var(--c-text);
 }
 
-.viewToggle { display: flex; border: 1px solid var(--c-border); border-radius: var(--radius-pill); overflow: hidden; }
-.viewToggle button {
-  background: var(--c-surface);
-  border: none;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  color: var(--c-text-mute);
-}
-.viewToggle .active { background: var(--color-brand-electric); color: #fff; }
-
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-4); }
-
-.card {
+/* ── Table ───────────────────────────────────────────────────────── */
+.tableWrap {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
-  padding: var(--s-4) var(--s-5);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  transition: box-shadow 0.15s, border-color 0.15s;
+  overflow: hidden;
 }
-.card:hover { box-shadow: var(--shadow-2); border-color: var(--c-accent-300); }
 
-.cardTop { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
-.cardName { font-size: 14px; font-weight: 600; color: var(--c-text); }
-.cardMeta { display: flex; justify-content: space-between; font-size: 12px; color: var(--c-text-mute); }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
 
-.empty { color: var(--c-text-mute); font-size: 14px; }
+.table thead tr {
+  border-bottom: 1px solid var(--c-border);
+}
+
+.table th {
+  text-align: left;
+  padding: var(--s-3) var(--s-4);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-border);
+  color: var(--c-text);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+
+.row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.row:hover td { background: var(--c-accent-50); }
+
+.nameCell { font-weight: 600; }
+.numCell  { color: var(--c-text-mute); white-space: nowrap; }
+.colNum   { width: 100px; }
+.colWide  { width: 180px; }
+
+/* ── Pass rate sparkbar ──────────────────────────────────────────── */
+.rateWrap { display: flex; align-items: center; gap: var(--s-2); }
+
+.sparkBar {
+  width: 80px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  background: var(--c-border);
+}
+
+.sparkPass { background: var(--c-pass); height: 100%; }
+.sparkFail { background: var(--c-fail); height: 100%; }
+
+.rateVal { font-size: 13px; color: var(--c-text); white-space: nowrap; }
+
+/* ── Deviation colours ───────────────────────────────────────────── */
+.devOk   { color: var(--c-pass); font-weight: 500; }
+.devFail { color: var(--c-fail); font-weight: 600; }
+
+.muted { color: var(--c-text-mute); }
+.empty { padding: var(--s-6); text-align: center; color: var(--c-text-mute); font-size: 14px; }

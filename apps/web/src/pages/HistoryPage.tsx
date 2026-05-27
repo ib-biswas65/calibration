@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import type { RunSummary } from "../api/types";
-import { DataTable, type Column } from "../components/DataTable";
 import { StatusPill } from "../components/StatusPill";
 import styles from "./HistoryPage.module.css";
 
@@ -11,39 +10,23 @@ function fmt(dt: string) {
   return new Date(dt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const COLUMNS: Column<RunSummary>[] = [
-  { key: "batch_name", header: "Batch name" },
-  {
-    key: "status",
-    header: "Status",
-    width: "110px",
-    render: (r) => <StatusPill value={r.status} />,
-  },
-  {
-    key: "logger_count",
-    header: "Loggers",
-    width: "80px",
-    render: (r) => <span>{r.logger_count ?? "—"}</span>,
-  },
-  {
-    key: "created_at",
-    header: "Created",
-    width: "140px",
-    render: (r) => <span>{fmt(r.created_at)}</span>,
-  },
-  {
-    key: "completed_at",
-    header: "Completed",
-    width: "140px",
-    render: (r) => <span>{r.completed_at ? fmt(r.completed_at) : "—"}</span>,
-  },
-];
-
-type ViewMode = "table" | "cards";
+function PassRateBar({ rate }: { rate: number | null }) {
+  if (rate === null) return <span className={styles.muted}>—</span>;
+  const pass = Math.round(rate);
+  const fail = 100 - pass;
+  return (
+    <div className={styles.rateWrap}>
+      <div className={styles.sparkBar}>
+        <div className={styles.sparkPass} style={{ width: `${pass}%` }} />
+        <div className={styles.sparkFail} style={{ width: `${fail}%` }} />
+      </div>
+      <span className={styles.rateVal}>{rate.toFixed(1)}%</span>
+    </div>
+  );
+}
 
 export function HistoryPage() {
   const nav = useNavigate();
-  const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -62,9 +45,7 @@ export function HistoryPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <h2 className={styles.heading}>Calibration History</h2>
-        <button className={styles.btnPrimary} onClick={() => nav("/new")}>
-          + New calibration
-        </button>
+        <button className={styles.btnPrimary} onClick={() => nav("/new")}>+ New calibration</button>
       </div>
 
       <div className={styles.toolbar}>
@@ -81,44 +62,48 @@ export function HistoryPage() {
           <option value="complete">Complete</option>
           <option value="failed">Failed</option>
         </select>
-        <div className={styles.viewToggle}>
-          <button className={view === "table" ? styles.active : ""} onClick={() => setView("table")}>
-            Table
-          </button>
-          <button className={view === "cards" ? styles.active : ""} onClick={() => setView("cards")}>
-            Cards
-          </button>
-        </div>
       </div>
 
       {isLoading ? (
         <p className={styles.empty}>Loading…</p>
-      ) : view === "table" ? (
-        <DataTable
-          columns={COLUMNS}
-          rows={data}
-          getKey={(r) => r.id}
-          onRowClick={(r) => nav(`/calibrations/${r.id}`)}
-          emptyMessage="No calibration runs found"
-        />
       ) : (
-        <div className={styles.cards}>
-          {data.length === 0 ? (
-            <p className={styles.empty}>No calibration runs found</p>
-          ) : (
-            data.map((run) => (
-              <div key={run.id} className={styles.card} onClick={() => nav(`/calibrations/${run.id}`)}>
-                <div className={styles.cardTop}>
-                  <span className={styles.cardName}>{run.batch_name}</span>
-                  <StatusPill value={run.status} />
-                </div>
-                <div className={styles.cardMeta}>
-                  <span>{run.logger_count != null ? `${run.logger_count} loggers` : "—"}</span>
-                  <span>{fmt(run.created_at)}</span>
-                </div>
-              </div>
-            ))
-          )}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Batch name</th>
+                <th>Status</th>
+                <th className={styles.colNum}>Loggers</th>
+                <th className={styles.colWide}>Pass rate</th>
+                <th className={styles.colNum}>Max dev.</th>
+                <th className={styles.colNum}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.empty}>No calibration runs found</td>
+                </tr>
+              ) : (
+                data.map((run) => (
+                  <tr key={run.id} className={styles.row} onClick={() => nav(`/calibrations/${run.id}`)}>
+                    <td className={styles.nameCell}>{run.batch_name}</td>
+                    <td><StatusPill value={run.status} /></td>
+                    <td className={styles.numCell}>{run.logger_count ?? "—"}</td>
+                    <td><PassRateBar rate={run.pass_rate} /></td>
+                    <td className={styles.numCell}>
+                      {run.max_deviation_c !== null && run.max_deviation_c !== undefined
+                        ? <span className={run.max_deviation_c > 0.5 ? styles.devFail : styles.devOk}>
+                            {run.max_deviation_c.toFixed(1)}°C
+                          </span>
+                        : <span className={styles.muted}>—</span>}
+                    </td>
+                    <td className={styles.numCell}>{fmt(run.created_at)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
