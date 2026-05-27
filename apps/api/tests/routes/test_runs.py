@@ -117,3 +117,15 @@ def test_delete_run_requires_admin(authed_client):
     run_id = authed_client.post("/api/runs", json=_RUN_BODY).json()["id"]
     resp = authed_client.delete(f"/api/runs/{run_id}")
     assert resp.status_code == 403
+
+
+def test_list_runs_includes_pass_rate_and_max_deviation(authed_client, db_session):
+    """RunSummary must include pass_rate and max_deviation_c (null when no results)."""
+    authed_client.post("/api/runs", json=_RUN_BODY)
+    lst = authed_client.get("/api/runs")
+    assert lst.status_code == 200
+    run = lst.json()[0]
+    assert "pass_rate" in run
+    assert "max_deviation_c" in run
+    assert run["pass_rate"] is None
+    assert run["max_deviation_c"] is None

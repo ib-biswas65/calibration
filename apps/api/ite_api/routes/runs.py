@@ -78,6 +78,8 @@ class RunSummary(BaseModel):
     created_at: datetime
     completed_at: datetime | None
     logger_count: int | None = None
+    pass_rate: float | None = None
+    max_deviation_c: float | None = None
 
     model_config = {"from_attributes": True}
 
@@ -160,7 +162,15 @@ def list_runs(
     runs = db.scalars(stmt).all()
     result = []
     for run in runs:
-        count = len(db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all())
+        results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all()
+        count = len(results)
+        pass_rate: float | None = None
+        max_dev: float | None = None
+        if results:
+            passed = sum(1 for r in results if r.verdict == "pass")
+            pass_rate = round(passed / count * 100, 1)
+            devs = [float(r.max_deviation_c) for r in results if r.max_deviation_c is not None]
+            max_dev = max(devs) if devs else None
         result.append(RunSummary(
             id=run.id,
             batch_name=run.batch_name,
@@ -168,6 +178,8 @@ def list_runs(
             created_at=run.created_at,
             completed_at=run.completed_at,
             logger_count=count if run.status == "complete" else None,
+            pass_rate=pass_rate if run.status == "complete" else None,
+            max_deviation_c=max_dev if run.status == "complete" else None,
         ))
     return result
 
