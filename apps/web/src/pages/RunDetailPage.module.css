@@ -4,10 +4,31 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
-  animation: fadeSlideUp var(--transition-slow) both;
+  animation: fadeSlideUp 400ms var(--ease-out) both;
 }
 
 .loading { padding: var(--s-6); color: var(--c-text-mute); }
+
+/* ── Breadcrumb ───────────────────────────────────────────────────── */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: 13px;
+}
+.breadcrumbLink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-brand-electric);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+.breadcrumbLink:hover { opacity: 0.7; }
+.breadcrumbSep { color: var(--c-text-mute); }
+.breadcrumbCurrent { color: var(--c-text-mute); }
 
 /* ── Header ───────────────────────────────────────────────────────── */
 .header { display: flex; flex-direction: column; gap: var(--s-2); }
@@ -51,7 +72,9 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
   white-space: nowrap;
   flex-shrink: 0;
   transition: background var(--transition-fast);
@@ -65,7 +88,30 @@
   padding: var(--s-3) var(--s-4);
   color: var(--c-fail);
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
 }
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--c-fail);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-fail);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.retryBtn:hover { background: var(--c-fail); color: #fff; }
+.retryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Stat strip ───────────────────────────────────────────────────── */
 .statStrip {
@@ -74,6 +120,7 @@
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
   overflow: hidden;
+  animation: staggerIn 400ms 80ms var(--ease-out) both;
 }
 
 .statItem {
@@ -82,7 +129,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  animation: fadeIn 350ms var(--ease-out) both;
 }
+.statStrip > .statItem:nth-child(1) { animation-delay: 120ms; }
+.statStrip > .statItem:nth-child(2) { animation-delay: 170ms; }
+.statStrip > .statItem:nth-child(3) { animation-delay: 220ms; }
+.statStrip > .statItem:nth-child(5) { animation-delay: 270ms; } /* skip dividers */
+.statStrip > .statItem:nth-child(7) { animation-delay: 320ms; }
 
 .statDivider { width: 1px; background: var(--c-border); flex-shrink: 0; }
 
@@ -155,6 +208,9 @@
   font-weight: 500;
   cursor: pointer;
   color: var(--c-text-mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 .vtActive { background: var(--color-boardroom-navy); color: #fff; }
@@ -195,10 +251,27 @@
 }
 .table tbody tr:last-child td { border-bottom: none; }
 
-.rowPass { transition: background var(--transition-fast); }
+.rowPass {
+  transition: background var(--transition-fast);
+  animation: fadeIn 280ms var(--ease-out) both;
+}
 .rowPass:hover td { background: var(--c-accent-50); }
-.rowFail { background: #fff8f8; transition: background var(--transition-fast); }
+.rowFail {
+  background: #fff8f8;
+  transition: background var(--transition-fast);
+  animation: fadeIn 280ms var(--ease-out) both;
+}
 .rowFail:hover td { background: #fee2e2; }
+
+/* Stagger first 8 table rows */
+.table tbody tr:nth-child(1) { animation-delay:  60ms; }
+.table tbody tr:nth-child(2) { animation-delay: 110ms; }
+.table tbody tr:nth-child(3) { animation-delay: 160ms; }
+.table tbody tr:nth-child(4) { animation-delay: 210ms; }
+.table tbody tr:nth-child(5) { animation-delay: 260ms; }
+.table tbody tr:nth-child(6) { animation-delay: 310ms; }
+.table tbody tr:nth-child(7) { animation-delay: 360ms; }
+.table tbody tr:nth-child(8) { animation-delay: 410ms; }
 
 .certNoCell { font-weight: 700; color: var(--color-boardroom-navy); font-size: 12px; }
 .certNoFail { color: var(--c-fail) !important; }
@@ -240,12 +313,27 @@
   flex-direction: column;
   gap: var(--s-2);
   transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+  animation: scaleIn 320ms var(--ease-out) both;
 }
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-2);
   border-color: var(--c-accent-300);
 }
+
+/* Stagger first 12 cards */
+.cardGrid > :nth-child(1)  { animation-delay:  30ms; }
+.cardGrid > :nth-child(2)  { animation-delay:  60ms; }
+.cardGrid > :nth-child(3)  { animation-delay:  90ms; }
+.cardGrid > :nth-child(4)  { animation-delay: 120ms; }
+.cardGrid > :nth-child(5)  { animation-delay: 150ms; }
+.cardGrid > :nth-child(6)  { animation-delay: 180ms; }
+.cardGrid > :nth-child(7)  { animation-delay: 210ms; }
+.cardGrid > :nth-child(8)  { animation-delay: 240ms; }
+.cardGrid > :nth-child(9)  { animation-delay: 270ms; }
+.cardGrid > :nth-child(10) { animation-delay: 300ms; }
+.cardGrid > :nth-child(11) { animation-delay: 330ms; }
+.cardGrid > :nth-child(12) { animation-delay: 360ms; }
 .cardFail { border-color: #fca5a5; }
 .cardFail:hover { border-color: var(--c-fail); }
 

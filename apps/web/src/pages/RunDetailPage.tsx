@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, Download, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import type { LoggerResult, RunDetail } from "../api/types";
 import { StatusPill } from "../components/StatusPill";
+import { useToast } from "../components/Toast";
 import styles from "./RunDetailPage.module.css";
 
 type ViewMode = "table" | "cards";
@@ -49,8 +51,9 @@ function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
             download
             className={styles.dlBtn}
             onClick={(e) => e.stopPropagation()}
+            aria-label={`Download certificate ${result.cert_no}`}
           >
-            ↓
+            <Download size={12} aria-hidden="true" />
           </a>
         )}
       </div>
@@ -61,9 +64,12 @@ function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail">("");
+  const [retrying, setRetrying] = useState(false);
 
   const { data: run, isLoading, error } = useQuery<RunDetail>({
     queryKey: ["run", id],
@@ -104,14 +110,36 @@ export function RunDetailPage() {
     };
   }, [run]);
 
+  async function handleRetry() {
+    if (!id) return;
+    setRetrying(true);
+    try {
+      await apiFetch(`/api/runs/${id}/process`, { method: "POST" });
+      qc.invalidateQueries({ queryKey: ["run", id] });
+      toast("Processing restarted", "success");
+    } catch {
+      toast("Failed to retry processing", "error");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (isLoading) return <div className={styles.loading}>Loading…</div>;
   if (error || !run) return <div className={styles.loading}>Run not found.</div>;
 
   return (
     <div className={styles.page}>
+      {/* ── Breadcrumb ── */}
+      <nav aria-label="Breadcrumb" className={styles.breadcrumb}>
+        <button className={styles.breadcrumbLink} onClick={() => nav("/calibrations")}>
+          Calibrations
+        </button>
+        <ChevronRight size={13} className={styles.breadcrumbSep} aria-hidden="true" />
+        <span className={styles.breadcrumbCurrent}>{run.batch_name}</span>
+      </nav>
+
       {/* ── Header ── */}
       <div className={styles.header}>
-        <button className={styles.back} onClick={() => nav("/calibrations")}>← History</button>
         <div className={styles.headerRow}>
           <div className={styles.headerLeft}>
             <h2 className={styles.heading}>{run.batch_name}</h2>
@@ -128,8 +156,14 @@ export function RunDetailPage() {
             </div>
           </div>
           {run.status === "complete" && (
-            <a href={`/api/runs/${id}/results.zip`} download className={styles.btnPrimary}>
-              ↓ Download all (.zip)
+            <a
+              href={`/api/runs/${id}/results.zip`}
+              download
+              className={styles.btnPrimary}
+              aria-label="Download all certificates as ZIP"
+            >
+              <Download size={14} aria-hidden="true" />
+              Download all (.zip)
             </a>
           )}
         </div>
@@ -137,7 +171,16 @@ export function RunDetailPage() {
 
       {run.failure_reason && (
         <div className={styles.errorBanner}>
-          {run.failure_reason.message ?? "Processing failed"}
+          <span>{run.failure_reason.message ?? "Processing failed"}</span>
+          <button
+            className={styles.retryBtn}
+            onClick={handleRetry}
+            disabled={retrying}
+            aria-label="Retry processing"
+          >
+            <RefreshCw size={13} aria-hidden="true" />
+            {retrying ? "Retrying…" : "Retry"}
+          </button>
         </div>
       )}
 
@@ -190,11 +233,19 @@ export function RunDetailPage() {
           <button
             className={`${styles.vtBtn} ${view === "table" ? styles.vtActive : ""}`}
             onClick={() => setView("table")}
-          >≡ Table</button>
+            aria-label="Table view"
+            aria-pressed={view === "table"}
+          >
+            <List size={14} aria-hidden="true" /> Table
+          </button>
           <button
             className={`${styles.vtBtn} ${view === "cards" ? styles.vtActive : ""}`}
             onClick={() => setView("cards")}
-          >⊞ Cards</button>
+            aria-label="Cards view"
+            aria-pressed={view === "cards"}
+          >
+            <LayoutGrid size={14} aria-hidden="true" /> Cards
+          </button>
         </div>
       </div>
 
@@ -242,7 +293,10 @@ export function RunDetailPage() {
                             href={`/api/runs/${id}/results/${r.id}/certificate`}
                             download
                             className={styles.dlBtn}
-                          >↓</a>
+                            aria-label={`Download certificate ${r.cert_no}`}
+                          >
+                            <Download size={12} aria-hidden="true" />
+                          </a>
                         )}
                       </td>
                     </tr>

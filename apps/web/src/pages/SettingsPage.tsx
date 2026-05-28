@@ -1,20 +1,29 @@
+import { Eye, EyeOff, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { ApiError, apiFetch } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import { useToast } from "../components/Toast";
-import styles from "./LoginPage.module.css";
-import pageStyles from "./SettingsPage.module.css";
+import loginStyles from "./LoginPage.module.css";
+import styles from "./SettingsPage.module.css";
 
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
+  const nav = useNavigate();
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,49 +46,91 @@ export function SettingsPage() {
     }
   };
 
-  return (
-    <div className={pageStyles.page}>
-      <h1 className={pageStyles.title}>Settings</h1>
+  const handleLogoutAll = async () => {
+    setLoggingOutAll(true);
+    try {
+      await apiFetch("/api/auth/logout?all_sessions=true", { method: "POST" });
+      await logout();
+      nav("/login", { replace: true });
+    } catch {
+      toast("Failed to log out all sessions.", "error");
+      setLoggingOutAll(false);
+    }
+  };
 
-      <div className={pageStyles.section}>
-        <h2 className={pageStyles.sectionTitle}>Account</h2>
-        <div className={pageStyles.info}>
-          <span className={pageStyles.infoLabel}>Email</span>
+  return (
+    <div className={styles.page}>
+      <h1 className={styles.title}>Settings</h1>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Account</h2>
+        <div className={styles.info}>
+          <span className={styles.infoLabel}>Email</span>
           <span>{user?.email}</span>
         </div>
-        <div className={pageStyles.info}>
-          <span className={pageStyles.infoLabel}>Name</span>
+        <div className={styles.info}>
+          <span className={styles.infoLabel}>Name</span>
           <span>{user?.full_name}</span>
         </div>
-        <div className={pageStyles.info}>
-          <span className={pageStyles.infoLabel}>Role</span>
+        <div className={styles.info}>
+          <span className={styles.infoLabel}>Role</span>
           <span style={{ textTransform: "capitalize" }}>{user?.role}</span>
         </div>
       </div>
 
-      <div className={pageStyles.section}>
-        <h2 className={pageStyles.sectionTitle}>Change password</h2>
-        <form className={pageStyles.form} onSubmit={onSubmit} noValidate>
-          <label className={styles.field}>
-            <span className={styles.label}>Current password</span>
-            <input className={styles.input} type="password" autoComplete="current-password"
-              value={current} onChange={(e) => setCurrent(e.target.value)} />
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Change password</h2>
+        <form className={styles.form} onSubmit={onSubmit} noValidate>
+          <label className={loginStyles.field}>
+            <span className={loginStyles.label}>Current password</span>
+            <div className={loginStyles.passWrap}>
+              <input className={loginStyles.input} type={showCurrent ? "text" : "password"}
+                autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+              <button type="button" className={loginStyles.passToggle}
+                onClick={() => setShowCurrent((v) => !v)}
+                aria-label={showCurrent ? "Hide password" : "Show password"}>
+                {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
-          <label className={styles.field}>
-            <span className={styles.label}>New password</span>
-            <input className={styles.input} type="password" autoComplete="new-password"
-              value={next} onChange={(e) => setNext(e.target.value)} />
+          <label className={loginStyles.field}>
+            <span className={loginStyles.label}>New password <span className={styles.hint}>(min. 12 characters)</span></span>
+            <div className={loginStyles.passWrap}>
+              <input className={loginStyles.input} type={showNext ? "text" : "password"}
+                autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+              <button type="button" className={loginStyles.passToggle}
+                onClick={() => setShowNext((v) => !v)}
+                aria-label={showNext ? "Hide password" : "Show password"}>
+                {showNext ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
-          <label className={styles.field}>
-            <span className={styles.label}>Confirm new password</span>
-            <input className={styles.input} type="password" autoComplete="new-password"
-              value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <label className={loginStyles.field}>
+            <span className={loginStyles.label}>Confirm new password</span>
+            <div className={loginStyles.passWrap}>
+              <input className={loginStyles.input} type={showConfirm ? "text" : "password"}
+                autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <button type="button" className={loginStyles.passToggle}
+                onClick={() => setShowConfirm((v) => !v)}
+                aria-label={showConfirm ? "Hide password" : "Show password"}>
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </label>
-          {err && <div className={styles.error} role="alert">{err}</div>}
-          <button className={pageStyles.btn} disabled={submitting} type="submit">
+          {err && <div className={loginStyles.error} role="alert">{err}</div>}
+          <button className={styles.btn} disabled={submitting} type="submit">
             {submitting ? "Saving…" : "Change password"}
           </button>
         </form>
+      </div>
+
+      <div className={`${styles.section} ${styles.dangerSection}`}>
+        <h2 className={styles.sectionTitle}>Sessions</h2>
+        <p className={styles.dangerNote}>Log out of all devices and browser sessions, including this one.</p>
+        <button className={styles.btnDanger} disabled={loggingOutAll} onClick={handleLogoutAll}>
+          <LogOut size={14} aria-hidden="true" />
+          {loggingOutAll ? "Logging out…" : "Log out all sessions"}
+        </button>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@
   padding: var(--s-6) var(--s-4);
   display: flex;
   flex-direction: column;
+  animation: fadeIn 400ms var(--ease-out) both;
 }
 
 .brand {
@@ -17,7 +18,24 @@
   color: #fff;
   margin-bottom: var(--s-8);
   padding: 0 var(--s-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* Hero landing target: slides in from left as login title exits */
+  animation: staggerIn 380ms 80ms var(--ease-out) both;
 }
+
+.sidebarClose {
+  display: none;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.6);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color var(--transition-fast);
+}
+.sidebarClose:hover { color: #fff; }
 
 .navItem {
   display: block;
@@ -27,7 +45,8 @@
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 2px;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  animation: staggerIn 360ms var(--ease-out) both;
 }
 .navItem:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
 .navItemActive {
@@ -35,6 +54,16 @@
   color: #fff;
 }
 .navItemActive:hover { background: var(--c-accent-700); }
+
+/* Stagger nav items after brand */
+.sidebar a:nth-child(2)  { animation-delay: 120ms; }
+.sidebar a:nth-child(3)  { animation-delay: 170ms; }
+.sidebar a:nth-child(4)  { animation-delay: 220ms; }
+.sidebar a:nth-child(5)  { animation-delay: 270ms; }
+.sidebar a:nth-child(6)  { animation-delay: 320ms; }
+.sidebar a:nth-child(7)  { animation-delay: 370ms; }
+.sidebar a:nth-child(8)  { animation-delay: 420ms; }
+.sidebar a:nth-child(9)  { animation-delay: 470ms; }
 
 /* ── Main area ───────────────────────────────────────────────────────── */
 .main { display: flex; flex-direction: column; background: var(--c-bg); }
@@ -48,6 +77,7 @@
   justify-content: flex-end;
   padding: 0 var(--s-6);
   gap: var(--s-3);
+  animation: fadeIn 350ms 60ms var(--ease-out) both;
 }
 
 .userPill {
@@ -66,8 +96,57 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--c-text-soft);
-  transition: border-color 0.12s, color 0.12s;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 .logout:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
 
 .content { flex: 1; overflow: auto; }
+
+/* ── Hamburger (hidden on desktop) ──────────────────────────────── */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c-text-mute);
+  padding: 6px;
+  border-radius: 6px;
+  transition: color var(--transition-fast);
+  margin-right: auto;
+}
+.hamburger:hover { color: var(--c-text); }
+
+/* ── Mobile overlay ──────────────────────────────────────────────── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 499;
+  animation: fadeIn 200ms var(--ease-out) both;
+}
+
+/* ── Responsive breakpoint ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 500;
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+    box-shadow: var(--shadow-2);
+    animation: none;
+  }
+  .sidebarOpen { transform: translateX(0); }
+  .sidebarClose { display: flex; }
+
+  .hamburger { display: flex; }
+  .overlay { display: block; }
+
+  .topbar { padding: 0 var(--s-4); justify-content: flex-start; }
+}

@@ -1,4 +1,4 @@
-.page { padding: var(--s-6); width: 100%; animation: fadeSlideUp var(--transition-slow) both; }
+.page { padding: var(--s-6); width: 100%; animation: fadeSlideUp 400ms var(--ease-out) both; }
 
 .heading {
   font-family: var(--font-heading);
@@ -6,7 +6,66 @@
   font-weight: 500;
   letter-spacing: -0.03em;
   color: var(--color-boardroom-navy);
-  margin: 0 0 var(--s-6);
+  margin: 0 0 var(--s-5);
+}
+
+/* ── Progress steps ──────────────────────────────────────────────── */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--s-6);
+  overflow: hidden;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+}
+
+.stepNum {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c-border);
+  color: var(--c-text-mute);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.stepLabel {
+  color: var(--c-text-mute);
+  transition: color var(--transition-base);
+}
+
+.step.stepActive .stepNum {
+  background: var(--color-brand-electric);
+  color: #fff;
+}
+.step.stepActive .stepLabel { color: var(--color-brand-electric); font-weight: 600; }
+
+.step.stepDone .stepNum {
+  background: var(--c-pass);
+  color: #fff;
+}
+.step.stepDone .stepLabel { color: var(--c-pass); }
+
+.stepConnector {
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+  min-width: var(--s-4);
+  margin: 0 var(--s-2);
 }
 
 /* ── Two-column layout ───────────────────────────────────────────── */
@@ -180,8 +239,25 @@
 
 .calInfo { font-size: 14px; color: var(--c-text); margin-top: var(--s-2); }
 
-/* ── Processing ──────────────────────────────────────────────────── */
-.progress { display: flex; align-items: center; gap: var(--s-3); color: var(--c-text-mute); font-size: 14px; }
+/* ── Info panel step stagger ─────────────────────────────────────── */
+.infoStep { animation: staggerIn 350ms var(--ease-out) both; }
+.infoPanel .infoStep:nth-child(2) { animation-delay:  60ms; }
+.infoPanel .infoStep:nth-child(3) { animation-delay: 120ms; }
+.infoPanel .infoStep:nth-child(4) { animation-delay: 180ms; }
+.infoPanel .infoStep:nth-child(5) { animation-delay: 240ms; }
+
+/* ── Processing crossfade ─────────────────────────────────────────── */
+/* Wrap the button and progress indicator so they crossfade in place */
+.processWrap { position: relative; }
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--c-text-mute);
+  font-size: 14px;
+  animation: fadeIn 300ms var(--ease-out) both;
+}
 
 .spinner {
   width: 18px;
@@ -189,7 +265,7 @@
   border: 2px solid var(--c-border);
   border-top-color: var(--color-brand-electric);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -149,6 +149,20 @@ export function NewCalibrationPage() {
     }
   }
 
+  const STEPS = [
+    { key: "form", label: "Configure" },
+    { key: "files", label: "Upload" },
+    { key: "processing", label: "Process" },
+    { key: "done", label: "Done" },
+  ];
+  const currentStep = STEPS.findIndex((s) => s.key === phase);
+
+  function stepClass(idx: number) {
+    if (idx < currentStep) return `${styles.step} ${styles.stepDone}`;
+    if (idx === currentStep) return `${styles.step} ${styles.stepActive}`;
+    return styles.step;
+  }
+
   if (phase === "done" && runId) {
     return (
       <div className={styles.page}>
@@ -217,6 +231,19 @@ export function NewCalibrationPage() {
   return (
     <div className={styles.page}>
       <h2 className={styles.heading}>New Calibration</h2>
+
+      {/* ── Progress steps ── */}
+      <div className={styles.steps} aria-label="Progress">
+        {STEPS.map((s, i) => (
+          <div key={s.key} style={{ display: "contents" }}>
+            <div className={stepClass(i)}>
+              <span className={styles.stepNum}>{i + 1}</span>
+              <span className={styles.stepLabel}>{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && <div className={styles.stepConnector} aria-hidden="true" />}
+          </div>
+        ))}
+      </div>
 
       {phase === "form" && (
         <div className={styles.layout}>

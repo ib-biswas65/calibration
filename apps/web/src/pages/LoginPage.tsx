@@ -1,6 +1,7 @@
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { ApiError } from "../api/client";
@@ -20,6 +21,8 @@ export function LoginPage() {
   const nav = useNavigate();
   const loc = useLocation();
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<FormValues>();
 
@@ -33,7 +36,8 @@ export function LoginPage() {
     try {
       await login(parsed.data.email, parsed.data.password);
       const next = (loc.state as LocationState | null)?.from ?? "/";
-      nav(next, { replace: true });
+      setLeaving(true);
+      setTimeout(() => nav(next, { replace: true }), 330);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setSubmitErr("Invalid email or password.");
       else if (e instanceof ApiError && e.status === 429) setSubmitErr("Too many attempts. Try again later.");
@@ -43,12 +47,18 @@ export function LoginPage() {
 
   return (
     <main className={styles.wrap}>
-      <form className={styles.card} onSubmit={handleSubmit(onSubmit)} noValidate>
-        <h1 className={styles.title}>ITE Calibration</h1>
+      <form
+        className={`${styles.card} ${leaving ? styles.cardLeaving : ""}`}
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+      >
+        <h1 className={`${styles.title} ${leaving ? styles.titleLeaving : ""}`}>
+          ITE Calibration
+        </h1>
         <p className={styles.subtitle}>Sign in to continue</p>
 
         <label className={styles.field}>
-          <span className={styles.label}>Email</span>
+          <span className={styles.label}>Email <span className={styles.required} aria-hidden="true">*</span></span>
           <input
             className={styles.input}
             type="email"
@@ -59,21 +69,51 @@ export function LoginPage() {
         </label>
 
         <label className={styles.field}>
-          <span className={styles.label}>Password</span>
-          <input
-            className={styles.input}
-            type="password"
-            autoComplete="current-password"
-            aria-label="Password"
-            {...register("password")}
-          />
+          <span className={styles.label}>Password <span className={styles.required} aria-hidden="true">*</span></span>
+          <div className={styles.passWrap}>
+            <input
+              className={styles.input}
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              aria-label="Password"
+              {...register("password")}
+            />
+            <button
+              type="button"
+              className={styles.passToggle}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </label>
 
-        {submitErr && <div className={styles.error} role="alert">{submitErr}</div>}
+        <Link to="/reset-password" className={styles.forgotLink}>
+          Forgot password?
+        </Link>
 
-        <button className={styles.button} disabled={isSubmitting} type="submit">
-          Sign in
-        </button>
+        {submitErr && (
+          <div key={submitErr} className={styles.error} role="alert">
+            {submitErr}
+          </div>
+        )}
+
+        <div className={styles.btnWrap}>
+          <button
+            className={`${styles.button} ${isSubmitting ? styles.buttonLoading : ""}`}
+            disabled={isSubmitting}
+            type="submit"
+          >
+            Sign in
+          </button>
+          {isSubmitting && (
+            <div className={styles.spinnerOverlay}>
+              <span className={styles.spinner} />
+              Signing in…
+            </div>
+          )}
+        </div>
       </form>
     </main>
   );

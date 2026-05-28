@@ -1,4 +1,11 @@
-.page { padding: var(--s-6); width: 100%; display: flex; flex-direction: column; gap: var(--s-6); animation: fadeSlideUp var(--transition-slow) both; }
+.page {
+  padding: var(--s-6);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  animation: fadeSlideUp 400ms var(--ease-out) both;
+}
 
 .heading {
   margin: 0;
@@ -7,6 +14,7 @@
   font-weight: 500;
   letter-spacing: -0.03em;
   color: var(--color-boardroom-navy);
+  animation: staggerIn 380ms var(--ease-out) both;
 }
 
 .tiles {
@@ -16,6 +24,12 @@
 }
 @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px)  { .tiles { grid-template-columns: 1fr; } }
+
+/* Stagger tile entrance */
+.tiles > :nth-child(1) { animation: staggerIn 380ms  50ms var(--ease-out) both; }
+.tiles > :nth-child(2) { animation: staggerIn 380ms 100ms var(--ease-out) both; }
+.tiles > :nth-child(3) { animation: staggerIn 380ms 150ms var(--ease-out) both; }
+.tiles > :nth-child(4) { animation: staggerIn 380ms 200ms var(--ease-out) both; }
 
 .rails { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); }
 @media (max-width: 720px) { .rails { grid-template-columns: 1fr; } }
@@ -28,7 +42,10 @@
   min-height: 220px;
   display: flex;
   flex-direction: column;
+  animation: staggerIn 400ms var(--ease-out) both;
 }
+.rails > :nth-child(1) { animation-delay: 220ms; }
+.rails > :nth-child(2) { animation-delay: 280ms; }
 
 .railTitle {
   font-size: 12px;
@@ -49,10 +66,18 @@
   border-bottom: 1px solid var(--c-border);
   cursor: pointer;
   gap: var(--s-3);
-  transition: background 0.1s;
+  transition: background var(--transition-fast), margin var(--transition-fast), padding var(--transition-fast);
+  animation: staggerIn 350ms var(--ease-out) both;
 }
 .item:last-child { border-bottom: none; }
 .item:hover { background: var(--c-accent-50); margin: 0 calc(-1 * var(--s-5)); padding: var(--s-3) var(--s-5); }
+
+/* Stagger list items — offset from the rail's own delay */
+.list > :nth-child(1) { animation-delay: 280ms; }
+.list > :nth-child(2) { animation-delay: 330ms; }
+.list > :nth-child(3) { animation-delay: 380ms; }
+.list > :nth-child(4) { animation-delay: 430ms; }
+.list > :nth-child(5) { animation-delay: 480ms; }
 
 .itemMain { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .batchName {
@@ -79,3 +104,48 @@
 .emptySub { font-size: 12px; color: var(--c-text-mute); opacity: 0.7; }
 
 .loading { padding: var(--s-6); color: var(--c-text-mute); }
+
+/* ── Trend chart section ─────────────────────────────────────────── */
+.chartSection {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-5);
+  animation: staggerIn 400ms 320ms var(--ease-out) both;
+}
+
+/* ── Skeleton shimmer ────────────────────────────────────────────── */
+.skeleton {
+  border-radius: var(--radius-badge);
+  background: linear-gradient(90deg, var(--c-border) 25%, var(--c-bg) 50%, var(--c-border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  height: 14px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeletonTile {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-5);
+}
+
+.skeletonTitle {
+  width: 50%;
+  height: 12px;
+  margin-bottom: var(--s-4);
+}
+
+.skeletonItem {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-border);
+  gap: var(--s-4);
+}
+.skeletonItem:last-child { border-bottom: none; }

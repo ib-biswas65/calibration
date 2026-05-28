@@ -1,3 +1,4 @@
+import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import styles from "./FileDropZone.module.css";
 
@@ -45,7 +46,7 @@ export function FileDropZone({ label, accept, multiple = false, onFiles, hint }:
         className={styles.hidden}
         onChange={handleChange}
       />
-      <span className={styles.icon}>↑</span>
+      <Upload className={styles.icon} size={24} aria-hidden="true" />
       <span className={styles.label}>{label}</span>
       {hint && <span className={styles.hint}>{hint}</span>}
     </div>

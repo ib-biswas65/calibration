@@ -4,10 +4,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
-  animation: fadeSlideUp var(--transition-slow) both;
+  animation: fadeSlideUp 400ms var(--ease-out) both;
 }
 
-.header { display: flex; align-items: center; justify-content: space-between; }
+.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-3); }
+
+.headerActions { display: flex; align-items: center; gap: var(--s-3); }
 
 .heading {
   font-family: var(--font-heading);
@@ -97,8 +99,27 @@
 .row {
   cursor: pointer;
   transition: background var(--transition-fast);
+  animation: fadeIn 320ms var(--ease-out) both;
 }
 .row:hover td { background: var(--c-accent-50); }
+
+/* Stagger first 8 rows; beyond that fade in together */
+.table tbody tr:nth-child(1)  { animation-delay:  50ms; }
+.table tbody tr:nth-child(2)  { animation-delay: 100ms; }
+.table tbody tr:nth-child(3)  { animation-delay: 150ms; }
+.table tbody tr:nth-child(4)  { animation-delay: 200ms; }
+.table tbody tr:nth-child(5)  { animation-delay: 250ms; }
+.table tbody tr:nth-child(6)  { animation-delay: 300ms; }
+.table tbody tr:nth-child(7)  { animation-delay: 350ms; }
+.table tbody tr:nth-child(8)  { animation-delay: 400ms; }
+
+/* Sparkbar fill animation */
+.sparkPass { background: var(--c-pass); height: 100%; animation: sparkGrow 600ms 200ms var(--ease-out) both; transform-origin: left; }
+.sparkFail { background: var(--c-fail); height: 100%; animation: sparkGrow 600ms 200ms var(--ease-out) both; transform-origin: left; }
+@keyframes sparkGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
 
 .nameCell { font-weight: 600; }
 .numCell  { color: var(--c-text-mute); white-space: nowrap; }
@@ -117,9 +138,6 @@
   background: var(--c-border);
 }
 
-.sparkPass { background: var(--c-pass); height: 100%; }
-.sparkFail { background: var(--c-fail); height: 100%; }
-
 .rateVal { font-size: 13px; color: var(--c-text); white-space: nowrap; }
 
 /* ── Deviation colours ───────────────────────────────────────────── */
@@ -128,3 +146,71 @@
 
 .muted { color: var(--c-text-mute); }
 .empty { padding: var(--s-6); text-align: center; color: var(--c-text-mute); font-size: 14px; }
+
+/* ── Export button ───────────────────────────────────────────────── */
+.exportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.exportBtn:hover:not(:disabled) { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
+.exportBtn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Date range inputs ───────────────────────────────────────────── */
+.dateLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+}
+
+.dateInput {
+  padding: 7px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-badge);
+  font-size: 13px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.dateInput:focus { border-color: var(--color-brand-electric); }
+
+/* ── Sortable column headers ─────────────────────────────────────── */
+.thSort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.thSort:hover { color: var(--c-text); }
+.thSortActive { color: var(--color-brand-electric) !important; }
+.sortIconInactive { opacity: 0.4; }
+
+.table th { display: revert; }
+.thSort { display: table-cell; }
+
+/* ── Skeleton shimmer ────────────────────────────────────────────── */
+.skeleton {
+  height: 14px;
+  border-radius: var(--radius-badge);
+  background: linear-gradient(90deg, var(--c-border) 25%, var(--c-bg) 50%, var(--c-border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { ApiError, apiFetch } from "../api/client";
 import type { UserOut } from "../api/types";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useToast } from "../components/Toast";
 import styles from "./AdminUsersPage.module.css";
 
@@ -13,6 +15,8 @@ export function AdminUsersPage() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("engineer");
   const [setupUrl, setSetupUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState<UserOut | null>(null);
 
   const { data: users = [], isLoading } = useQuery<UserOut[]>({
     queryKey: ["users"],
@@ -42,8 +46,39 @@ export function AdminUsersPage() {
     }
   }
 
+  function handleCopyUrl() {
+    if (!setupUrl) return;
+    const full = `${window.location.origin}${setupUrl}`;
+    navigator.clipboard.writeText(full).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleToggleDisable(u: UserOut) {
+    if (!u.disabled) {
+      setConfirmDisable(u);
+    } else {
+      patchMutation.mutate({ id: u.id, body: { disabled: false } });
+    }
+  }
+
   return (
     <div className={styles.page}>
+      {confirmDisable && (
+        <ConfirmDialog
+          title="Disable user?"
+          message={`${confirmDisable.full_name} (${confirmDisable.email}) will no longer be able to sign in.`}
+          confirmLabel="Disable"
+          destructive
+          onConfirm={() => {
+            patchMutation.mutate({ id: confirmDisable.id, body: { disabled: true } });
+            setConfirmDisable(null);
+          }}
+          onCancel={() => setConfirmDisable(null)}
+        />
+      )}
+
       <div className={styles.header}>
         <h2 className={styles.heading}>User Management</h2>
         <button className={styles.btnPrimary} onClick={() => { setShowInvite(!showInvite); setSetupUrl(null); }}>
@@ -54,11 +89,11 @@ export function AdminUsersPage() {
       {showInvite && (
         <form className={styles.inviteForm} onSubmit={handleInvite}>
           <label className={styles.field}>
-            <span>Email</span>
+            <span>Email <span className={styles.required}>*</span></span>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           <label className={styles.field}>
-            <span>Full name</span>
+            <span>Full name <span className={styles.required}>*</span></span>
             <input required value={fullName} onChange={(e) => setFullName(e.target.value)} />
           </label>
           <label className={styles.field}>
@@ -73,7 +108,13 @@ export function AdminUsersPage() {
           {setupUrl && (
             <div className={styles.setupUrl}>
               <strong>Share this setup link with the user:</strong>
-              <code>{window.location.origin}{setupUrl}</code>
+              <div className={styles.setupUrlRow}>
+                <code className={styles.setupUrlCode}>{window.location.origin}{setupUrl}</code>
+                <button type="button" className={styles.copyBtn} onClick={handleCopyUrl} aria-label="Copy setup link">
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
             </div>
           )}
         </form>
@@ -112,7 +153,7 @@ export function AdminUsersPage() {
                 <td>
                   <button
                     className={styles.toggleBtn}
-                    onClick={() => patchMutation.mutate({ id: u.id, body: { disabled: !u.disabled } })}
+                    onClick={() => handleToggleDisable(u)}
                   >
                     {u.disabled ? "Enable" : "Disable"}
                   </button>
