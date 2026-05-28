@@ -12,7 +12,15 @@ _SessionLocal: sessionmaker[Session] | None = None
 def _init() -> None:
     global _engine, _SessionLocal
     if _engine is None:
-        _engine = create_engine(get_settings().database_url, future=True)
+        _engine = create_engine(
+            get_settings().database_url,
+            future=True,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,   # discard stale connections (important after idle/restart)
+            pool_recycle=1800,    # recycle connections after 30 min
+            pool_timeout=30,
+        )
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
 
 

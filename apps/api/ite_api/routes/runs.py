@@ -1,11 +1,14 @@
 """Calibration runs — CRUD, file uploads, processing, status, downloads."""
 
 import io
+import logging
 import re
 import uuid
 import zipfile
 from datetime import UTC, date, datetime
 from pathlib import Path
+
+_log = logging.getLogger(__name__)
 
 from fastapi import (
     APIRouter,
@@ -19,7 +22,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import case, delete, func, select, update as sql_update
 from sqlalchemy.orm import Session
 
 from ite_api.audit import write_audit
@@ -150,7 +153,34 @@ def list_runs(
     db: Session = Depends(get_session),
     user: User = require_role("viewer"),
 ):
-    stmt = select(CalibrationRun).order_by(CalibrationRun.created_at.desc()).limit(limit)
+    # Single aggregation query — avoids N+1 (one SELECT per run for logger_results).
+    # Only fetches verdict + max_deviation_c columns via SQL; per_setpoint JSON is never loaded.
+    stats_subq = (
+        select(
+            LoggerResult.run_id,
+            func.count(LoggerResult.id).label("logger_count"),
+            (
+                func.sum(case((LoggerResult.verdict == "pass", 1.0), else_=0.0))
+                * 100.0
+                / func.nullif(func.count(LoggerResult.id), 0)
+            ).label("pass_rate"),
+            func.max(LoggerResult.max_deviation_c).label("max_deviation_c"),
+        )
+        .group_by(LoggerResult.run_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            CalibrationRun,
+            stats_subq.c.logger_count,
+            stats_subq.c.pass_rate,
+            stats_subq.c.max_deviation_c,
+        )
+        .outerjoin(stats_subq, stats_subq.c.run_id == CalibrationRun.id)
+        .order_by(CalibrationRun.created_at.desc())
+        .limit(limit)
+    )
     if status_filter:
         stmt = stmt.where(CalibrationRun.status == status_filter)
     if from_date:
@@ -159,27 +189,20 @@ def list_runs(
         stmt = stmt.where(CalibrationRun.created_at <= to_date)
     if q:
         stmt = stmt.where(CalibrationRun.batch_name.ilike(f"%{q}%"))
-    runs = db.scalars(stmt).all()
+
+    rows = db.execute(stmt).all()
     result = []
-    for run in runs:
-        results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all()
-        count = len(results)
-        pass_rate: float | None = None
-        max_dev: float | None = None
-        if results:
-            passed = sum(1 for r in results if r.verdict == "pass")
-            pass_rate = round(passed / count * 100, 1)
-            devs = [float(r.max_deviation_c) for r in results if r.max_deviation_c is not None]
-            max_dev = max(devs) if devs else None
+    for run, logger_count, pass_rate, max_dev in rows:
+        is_complete = run.status == "complete"
         result.append(RunSummary(
             id=run.id,
             batch_name=run.batch_name,
             status=run.status,
             created_at=run.created_at,
             completed_at=run.completed_at,
-            logger_count=count if run.status == "complete" else None,
-            pass_rate=pass_rate if run.status == "complete" else None,
-            max_deviation_c=max_dev if run.status == "complete" else None,
+            logger_count=int(logger_count) if (is_complete and logger_count is not None) else None,
+            pass_rate=round(float(pass_rate), 1) if (is_complete and pass_rate is not None) else None,
+            max_deviation_c=float(max_dev) if (is_complete and max_dev is not None) else None,
         ))
     return result
 
@@ -342,9 +365,7 @@ def process_run(
     db: Session = Depends(get_session),
     user: User = require_role("engineer"),
 ):
-    run = _get_run_or_404(run_id, db)
-    if run.status not in ("draft", "failed"):
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"run status is '{run.status}', cannot process")
+    _get_run_or_404(run_id, db)
 
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run_id)).all()
     cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run_id)).first()
@@ -354,8 +375,21 @@ def process_run(
     if cal_file is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no calibration workbook uploaded")
 
-    run.status = "processing"
+    # Atomic transition: only one concurrent request can win this UPDATE.
+    # If two requests race, only one gets rowcount=1; the other hits the 409.
+    result = db.execute(
+        sql_update(CalibrationRun)
+        .where(CalibrationRun.id == run_id)
+        .where(CalibrationRun.status.in_(("draft", "failed")))
+        .values(status="processing")
+        .returning(CalibrationRun.id)
+    )
     db.commit()
+    if not result.fetchone():
+        run = db.get(CalibrationRun, run_id)
+        current = run.status if run else "unknown"
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"run status is '{current}', cannot process")
+
     write_audit(db, user_id=user.id, run_id=run_id, action="run.processing_started")
 
     settings = get_settings()
@@ -500,8 +534,9 @@ def _run_processing_task(
         try:
             _do_process(run, ref_paths, cal_path, settings, db)
         except Exception as exc:  # noqa: BLE001
+            _log.exception("Processing failed for run %s", run_id)
             run.status = "failed"
-            run.failure_reason = {"message": str(exc)}
+            run.failure_reason = {"message": "Processing failed. Check server logs for details."}
             db.commit()
 
 
@@ -513,6 +548,10 @@ def _do_process(
     db: Session,
 ) -> None:
     from ite_api.calibration.matcher import find_values_for_target
+
+    # Wipe any results from a previous partial/failed attempt so retries are clean.
+    db.execute(delete(LoggerResult).where(LoggerResult.run_id == run.id))
+    db.flush()
 
     ref_df = combine_refs([load_ref_auto(p) for p in ref_paths])
     wb, sheet_names = load_workbook(cal_path)

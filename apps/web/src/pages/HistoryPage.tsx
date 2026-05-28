@@ -38,7 +38,7 @@ export function HistoryPage() {
       if (statusFilter) params.set("status", statusFilter);
       return apiFetch<RunSummary[]>(`/api/runs?${params}`);
     },
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
   });
 
   return (
