@@ -66,6 +66,17 @@ export function NewCalibrationPage() {
 
   async function handleCreateRun(e: React.FormEvent) {
     e.preventDefault();
+
+    const invalidSp = setpoints.find((sp) => sp.start_at >= sp.end_at);
+    if (invalidSp) {
+      toast(`Setpoint ${invalidSp.target_c}°C: end time must be after start time`, "error");
+      return;
+    }
+    if (testingStart && testingEnd && testingStart >= testingEnd) {
+      toast("Testing end must be after testing start", "error");
+      return;
+    }
+
     try {
       const run = await apiFetch<RunDetail>("/api/runs", {
         method: "POST",
@@ -157,114 +168,170 @@ export function NewCalibrationPage() {
     );
   }
 
+  const infoPanel = (
+    <aside className={styles.infoPanel}>
+      <span className={styles.infoPanelTitle}>How it works</span>
+
+      <div className={styles.infoStep}>
+        <span className={styles.infoStepNum}>1</span>
+        <div className={styles.infoStepBody}>
+          <span className={styles.infoStepLabel}>Configure the batch</span>
+          <span className={styles.infoStepDesc}>Set the batch name, certificate date, testing window, and setpoint time ranges.</span>
+        </div>
+      </div>
+      <div className={styles.infoStep}>
+        <span className={styles.infoStepNum}>2</span>
+        <div className={styles.infoStepBody}>
+          <span className={styles.infoStepLabel}>Upload reference data</span>
+          <span className={styles.infoStepDesc}>One CSV per reference logger. Multiple files are automatically merged.</span>
+        </div>
+      </div>
+      <div className={styles.infoStep}>
+        <span className={styles.infoStepNum}>3</span>
+        <div className={styles.infoStepBody}>
+          <span className={styles.infoStepLabel}>Upload calibration workbook</span>
+          <span className={styles.infoStepDesc}>One XLSX with a sheet per logger. Each sheet name becomes the logger serial number.</span>
+        </div>
+      </div>
+      <div className={styles.infoStep}>
+        <span className={styles.infoStepNum}>4</span>
+        <div className={styles.infoStepBody}>
+          <span className={styles.infoStepLabel}>Generate certificates</span>
+          <span className={styles.infoStepDesc}>The engine matches readings, calculates deviation, and fills the certificate template.</span>
+        </div>
+      </div>
+
+      <hr className={styles.infoDivider} />
+
+      <div className={styles.infoNote}>
+        <span className={styles.infoNoteLabel}>Cert no. width</span>
+        Controls zero-padding. Width 10 with start 1000 produces <code>0000001000</code>.
+      </div>
+      <div className={styles.infoNote}>
+        <span className={styles.infoNoteLabel}>Threshold</span>
+        Maximum allowed deviation in °C. Results exceeding this are marked as fail.
+      </div>
+    </aside>
+  );
+
   return (
     <div className={styles.page}>
       <h2 className={styles.heading}>New Calibration</h2>
 
       {phase === "form" && (
-        <form className={styles.form} onSubmit={handleCreateRun}>
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Batch info</h3>
-            <div className={styles.fieldGrid}>
-              <label className={styles.field}>
-                <span>Batch name</span>
-                <input required value={batchName} onChange={(e) => setBatchName(e.target.value)}
-                  placeholder="e.g. April 2026 — Batch 1" />
-              </label>
-              <label className={styles.field}>
-                <span>Certificate date</span>
-                <input type="date" required value={certDate} onChange={(e) => setCertDate(e.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Testing start</span>
-                <input type="datetime-local" required value={testingStart} onChange={(e) => setTestingStart(e.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Testing end</span>
-                <input type="datetime-local" required value={testingEnd} onChange={(e) => setTestingEnd(e.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Starting cert no.</span>
-                <input required value={startCertNo} onChange={(e) => setStartCertNo(e.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Cert no. width</span>
-                <input type="number" min={1} max={20} value={certWidth} onChange={(e) => setCertWidth(e.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Threshold (°C)</span>
-                <input type="number" step="0.01" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
-              </label>
-            </div>
-          </section>
+        <div className={styles.layout}>
+          <form className={styles.form} onSubmit={handleCreateRun}>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Batch info</h3>
+              <div className={styles.fieldGrid}>
+                <label className={styles.field}>
+                  <span>Batch name</span>
+                  <input required value={batchName} onChange={(e) => setBatchName(e.target.value)}
+                    placeholder="e.g. April 2026 — Batch 1" />
+                </label>
+                <label className={styles.field}>
+                  <span>Certificate date</span>
+                  <input type="date" required value={certDate} onChange={(e) => setCertDate(e.target.value)} />
+                </label>
+                <label className={styles.field}>
+                  <span>Testing start</span>
+                  <input type="datetime-local" required value={testingStart} onChange={(e) => setTestingStart(e.target.value)} />
+                </label>
+                <label className={styles.field}>
+                  <span>Testing end</span>
+                  <input type="datetime-local" required value={testingEnd} onChange={(e) => setTestingEnd(e.target.value)} />
+                </label>
+                <label className={styles.field}>
+                  <span>Starting cert no.</span>
+                  <input required value={startCertNo} onChange={(e) => setStartCertNo(e.target.value)} />
+                </label>
+                <label className={styles.field}>
+                  <span>Cert no. width</span>
+                  <input type="number" min={1} max={20} value={certWidth} onChange={(e) => setCertWidth(e.target.value)} />
+                </label>
+                <label className={styles.field}>
+                  <span>Threshold (°C)</span>
+                  <input type="number" step="0.01" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
+                </label>
+              </div>
+            </section>
 
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Setpoint windows</h3>
-            <div className={styles.setpoints}>
-              {setpoints.map((sp, i) => (
-                <SetpointWindowRow
-                  key={sp.target_c}
-                  value={sp}
-                  onChange={(v) => setSetpoints((prev) => prev.map((s, j) => j === i ? v : s))}
-                />
-              ))}
-            </div>
-          </section>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Setpoint windows</h3>
+              <div className={styles.setpoints}>
+                {setpoints.map((sp, i) => (
+                  <SetpointWindowRow
+                    key={sp.target_c}
+                    value={sp}
+                    onChange={(v) => setSetpoints((prev) => prev.map((s, j) => j === i ? v : s))}
+                  />
+                ))}
+              </div>
+            </section>
 
-          <button type="submit" className={styles.btnPrimary}>Continue → Upload files</button>
-        </form>
+            <button type="submit" className={styles.btnPrimary}>Continue — Upload files</button>
+          </form>
+          {infoPanel}
+        </div>
       )}
 
       {(phase === "files" || phase === "processing") && (
-        <div className={styles.files}>
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Reference loggers</h3>
-            <FileDropZone
-              label="Drop reference CSV(s) here or click to browse"
-              accept=".csv"
-              multiple
-              onFiles={handleRefUpload}
-              hint="Multiple files allowed — one per reference logger"
-            />
-            {refFiles.length > 0 && (
-              <ul className={styles.fileList}>
-                {refFiles.map((f) => <li key={f.id}>{f.name}</li>)}
-              </ul>
-            )}
-          </section>
+        <div className={styles.layout}>
+          <div className={styles.files}>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Reference loggers</h3>
+              <FileDropZone
+                label="Drop reference CSV(s) here or click to browse"
+                accept=".csv"
+                multiple
+                onFiles={handleRefUpload}
+                hint="Multiple files allowed — one per reference logger"
+              />
+              {refFiles.length > 0 && (
+                <ul className={styles.fileList}>
+                  {refFiles.map((f) => <li key={f.id}>{f.name}</li>)}
+                </ul>
+              )}
+            </section>
 
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Calibration workbook</h3>
-            <FileDropZone
-              label="Drop calibration XLSX here or click to browse"
-              accept=".xlsx"
-              onFiles={handleCalUpload}
-              hint="One file — each sheet = one logger"
-            />
-            {calFile && (
-              <div className={styles.calInfo}>
-                <strong>{calFile.name}</strong>
-                <span> — {calFile.sheets.length} sheet(s): {calFile.sheets.slice(0, 5).join(", ")}
-                  {calFile.sheets.length > 5 ? ` … +${calFile.sheets.length - 5} more` : ""}
-                </span>
-              </div>
-            )}
-          </section>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Calibration workbook</h3>
+              <FileDropZone
+                label="Drop calibration XLSX here or click to browse"
+                accept=".xlsx"
+                onFiles={handleCalUpload}
+                hint="One file — each sheet = one logger"
+              />
+              {calFile && (
+                <div className={styles.calInfo}>
+                  <strong>{calFile.name}</strong>
+                  <span> — {calFile.sheets.length} sheet(s): {calFile.sheets.slice(0, 5).join(", ")}
+                    {calFile.sheets.length > 5 ? ` … +${calFile.sheets.length - 5} more` : ""}
+                  </span>
+                </div>
+              )}
+            </section>
 
-          {phase === "processing" ? (
-            <div className={styles.progress}>
-              <span className={styles.spinner} />
-              Processing… {statusData?.message ?? ""}
+            {/* CrossFade: button fades out as spinner fades in (300ms) */}
+            <div className={styles.processWrap}>
+              {phase === "processing" ? (
+                <div className={styles.progress}>
+                  <span className={styles.spinner} />
+                  Processing… {statusData?.message ?? ""}
+                </div>
+              ) : (
+                <button
+                  className={styles.btnPrimary}
+                  style={{ animation: "fadeIn 300ms var(--ease-out) both" }}
+                  disabled={refFiles.length === 0 || !calFile}
+                  onClick={handleProcess}
+                >
+                  Generate certificates
+                </button>
+              )}
             </div>
-          ) : (
-            <button
-              className={styles.btnPrimary}
-              disabled={refFiles.length === 0 || !calFile}
-              onClick={handleProcess}
-            >
-              Generate certificates
-            </button>
-          )}
+          </div>
+          {infoPanel}
         </div>
       )}
     </div>

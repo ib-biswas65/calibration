@@ -77,7 +77,7 @@ export function RunDetailPage() {
   const filtered = useMemo(() => {
     if (!run) return [];
     const q = search.toLowerCase();
-    return run.results.filter((r) => {
+    return (run.results ?? []).filter((r) => {
       const matchSearch =
         !q ||
         (r.cert_no?.toLowerCase().includes(q) ?? false) ||
@@ -88,11 +88,12 @@ export function RunDetailPage() {
   }, [run, search, verdictFilter]);
 
   const stats = useMemo(() => {
-    if (!run || run.results.length === 0) return null;
-    const passed = run.results.filter((r) => r.verdict === "pass").length;
-    const failed = run.results.filter((r) => r.verdict === "fail").length;
-    const total = run.results.length;
-    const devs = run.results
+    const results = run?.results ?? [];
+    if (!run || results.length === 0) return null;
+    const passed = results.filter((r) => r.verdict === "pass").length;
+    const failed = results.filter((r) => r.verdict === "fail").length;
+    const total = results.length;
+    const devs = results
       .map((r) => r.max_deviation_c)
       .filter((d): d is number => d !== null);
     return {

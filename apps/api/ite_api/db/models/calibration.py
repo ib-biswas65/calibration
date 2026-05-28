@@ -86,13 +86,13 @@ class LoggerResult(Base):
         UUID(as_uuid=True), ForeignKey("calibration_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     logger_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("loggers.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("loggers.id", ondelete="SET NULL"), nullable=True, index=True
     )
     sheet_name: Mapped[str] = mapped_column(String(200), nullable=False)
     verdict: Mapped[str] = mapped_column(String(20), nullable=False)
     max_deviation_c: Mapped[float | None] = mapped_column(Numeric(6, 3), nullable=True)
     per_setpoint: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    cert_no: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    cert_no: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     cert_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -244,6 +244,32 @@ def get_run(
     return _run_detail(run, db)
 
 
+@router.patch("/{run_id}", response_model=RunDetail)
+def patch_run(
+    run_id: uuid.UUID,
+    body: RunCreateRequest,
+    db: Session = Depends(get_session),
+    user: User = require_role("engineer"),
+):
+    run = _get_run_or_404(run_id, db)
+    if run.status != "draft":
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="only draft runs can be edited")
+    run.batch_name = body.batch_name
+    run.testing_start = body.testing_start
+    run.testing_end = body.testing_end
+    run.certificate_date = body.certificate_date
+    run.threshold_c = body.threshold_c
+    run.setpoints = [sp.model_dump(mode="json") for sp in body.setpoints]
+    run.start_cert_no = body.start_cert_no
+    run.cert_width = body.cert_width
+    run.test_date_jp = body.test_date_jp
+    run.doc_date_jp = body.doc_date_jp
+    db.commit()
+    db.refresh(run)
+    write_audit(db, user_id=user.id, run_id=run.id, action="run.updated")
+    return _run_detail(run, db)
+
+
 @router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_run(
     run_id: uuid.UUID,
@@ -251,9 +277,41 @@ def delete_run(
     user: User = require_role("admin"),
 ):
     run = _get_run_or_404(run_id, db)
+
+    # Collect all on-disk paths before the DB cascade removes the records.
+    ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
+    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)).first()
+    results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all()
+
     write_audit(db, user_id=user.id, run_id=run.id, action="run.deleted")
     db.delete(run)
     db.commit()
+
+    # Remove files from the data volume after the DB transaction commits.
+    paths_to_remove: list[Path] = []
+    for f in ref_files:
+        paths_to_remove.append(Path(f.stored_path))
+    if cal_file:
+        paths_to_remove.append(Path(cal_file.stored_path))
+    for r in results:
+        if r.cert_path:
+            paths_to_remove.append(Path(r.cert_path))
+
+    for p in paths_to_remove:
+        try:
+            p.unlink(missing_ok=True)
+        except OSError as e:
+            _log.warning("Could not delete file %s: %s", p, e)
+
+    # Best-effort: remove the now-empty run directory.
+    settings = get_settings()
+    run_dir = settings.data_dir / "runs" / str(run_id)
+    try:
+        if run_dir.exists():
+            import shutil
+            shutil.rmtree(run_dir, ignore_errors=True)
+    except OSError as e:
+        _log.warning("Could not remove run directory %s: %s", run_dir, e)
 
 
 # ── File uploads ──────────────────────────────────────────────────────────

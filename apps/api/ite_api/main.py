@@ -55,8 +55,21 @@ def create_app() -> FastAPI:
     app.add_middleware(OriginCheckMiddleware)
 
     @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    def health() -> dict:
+        checks: dict[str, str] = {"api": "ok"}
+
+        # Verify data directory is writable (catches full/mis-mounted volumes).
+        probe = settings.data_dir / ".health_probe"
+        try:
+            settings.data_dir.mkdir(parents=True, exist_ok=True)
+            probe.write_text("ok")
+            probe.unlink()
+            checks["storage"] = "ok"
+        except OSError as e:
+            checks["storage"] = f"error: {e}"
+
+        overall = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
+        return {"status": overall, **checks}
 
     app.include_router(auth_router)
     app.include_router(users_router)

@@ -1,6 +1,7 @@
-"""Logger device routes — list and detail (v1 stubs with real data)."""
+"""Logger device routes — list, detail, and update."""
 
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -25,6 +26,12 @@ class LoggerSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LoggerUpdateRequest(BaseModel):
+    model: str | None = None
+    notes: str | None = None
+    next_due_at: date | None = None
+
+
 @router.get("", response_model=list[LoggerSummary])
 def list_loggers(
     q: str | None = Query(default=None),
@@ -46,6 +53,33 @@ def list_loggers(
         )
         for lg in loggers
     ]
+
+
+@router.patch("/{logger_id}", response_model=LoggerSummary)
+def update_logger(
+    logger_id: uuid.UUID,
+    body: LoggerUpdateRequest,
+    db: Session = Depends(get_session),
+    user: User = require_role("engineer"),
+):
+    lg = db.get(Logger, logger_id)
+    if lg is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="logger not found")
+    if body.model is not None:
+        lg.model = body.model
+    if body.notes is not None:
+        lg.notes = body.notes
+    if "next_due_at" in body.model_fields_set:
+        lg.next_due_at = body.next_due_at
+    db.commit()
+    db.refresh(lg)
+    return LoggerSummary(
+        id=str(lg.id),
+        serial_no=lg.serial_no,
+        model=lg.model,
+        notes=lg.notes,
+        next_due_at=lg.next_due_at.isoformat() if lg.next_due_at else None,
+    )
 
 
 @router.get("/{logger_id}")
