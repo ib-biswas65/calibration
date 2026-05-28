@@ -102,10 +102,13 @@ def me(user: User = current_user) -> MeResponse:
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
+    all_sessions: bool = False,
     db: Session = Depends(get_session),
     ite_rt: str | None = Cookie(default=None),
 ) -> Response:
     s = get_settings()
+    now = datetime.now(UTC)
+
     if ite_rt:
         sess = (
             db.query(UserSession)
@@ -113,9 +116,18 @@ def logout(
             .one_or_none()
         )
         if sess and sess.revoked_at is None:
-            sess.revoked_at = datetime.now(UTC)
-            write_audit(db, user_id=sess.user_id, action="logout", detail=None)
+            if all_sessions:
+                # Revoke every active session for this user across all devices.
+                db.query(UserSession).filter(
+                    UserSession.user_id == sess.user_id,
+                    UserSession.revoked_at.is_(None),
+                ).update({"revoked_at": now})
+                write_audit(db, user_id=sess.user_id, action="logout.all_sessions", detail=None)
+            else:
+                sess.revoked_at = now
+                write_audit(db, user_id=sess.user_id, action="logout", detail=None)
             db.commit()
+
     out = Response(status_code=status.HTTP_204_NO_CONTENT)
     out.delete_cookie(s.cookie_access_name, path="/")
     out.delete_cookie(s.cookie_refresh_name, path="/")

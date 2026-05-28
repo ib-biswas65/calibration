@@ -49,7 +49,7 @@ export function NewCalibrationPage() {
     queryKey: ["run-status", runId],
     queryFn: () => apiFetch(`/api/runs/${runId}/status`),
     enabled: !!runId && phase === "processing",
-    refetchInterval: 2000,
+    refetchInterval: 4000,
   });
 
   useEffect(() => {
