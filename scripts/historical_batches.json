@@ -12,8 +12,8 @@
       "test_date_jp": "2026年3月4日",
       "doc_date_jp": "2026年3月6日",
       "certificate_date": "2026-03-06",
-      "testing_start": "2026-03-04T00:00:00",
-      "testing_end": "2026-03-04T23:59:59"
+      "testing_start": "2026-03-10T00:00:00",
+      "testing_end": "2026-03-12T17:00:00"
     },
     {
       "name": "Batch 2 — March 12, 2026 (cert 1720)",
@@ -27,8 +27,8 @@
       "test_date_jp": "2026年3月12日",
       "doc_date_jp": "2026年3月13日",
       "certificate_date": "2026-03-13",
-      "testing_start": "2026-03-12T00:00:00",
-      "testing_end": "2026-03-12T23:59:59"
+      "testing_start": "2026-03-11T00:00:00",
+      "testing_end": "2026-03-12T17:00:00"
     },
     {
       "name": "Batch 3 — April 14, 2026 (cert 1935)",
@@ -41,8 +41,8 @@
       "test_date_jp": "2026年4月14日",
       "doc_date_jp": "2026年4月17日",
       "certificate_date": "2026-04-17",
-      "testing_start": "2026-04-14T00:00:00",
-      "testing_end": "2026-04-14T23:59:59"
+      "testing_start": "2026-04-13T00:00:00",
+      "testing_end": "2026-04-15T10:00:00"
     }
   ],
   "threshold_c": 0.5,
