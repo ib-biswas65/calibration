@@ -122,12 +122,13 @@ def run_migration(cfg: MigrationConfig, *, template: Path) -> int:
         RunCalibrationFile,
         RunReferenceFile,
     )
-    from ite_api.db.session import _init, _SessionLocal
+    from ite_api.db import session as db_session
     from ite_api.storage import save_file
 
     settings = get_settings()
-    _init()
-    assert _SessionLocal is not None
+    db_session._init()
+    assert db_session._SessionLocal is not None
+    SessionLocal = db_session._SessionLocal
 
     setpoint_windows_by_batch: dict[str, list[SetpointWindow]] = {}
     for b in cfg.batches:
@@ -141,7 +142,7 @@ def run_migration(cfg: MigrationConfig, *, template: Path) -> int:
 
     for batch in cfg.batches:
         print(f"\n=== {batch.name} ===")
-        with _SessionLocal() as db:
+        with SessionLocal() as db:
             run = CalibrationRun(
                 batch_name=batch.name,
                 status="complete",
