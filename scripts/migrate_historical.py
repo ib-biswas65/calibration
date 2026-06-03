@@ -104,8 +104,178 @@ def main() -> int:
         print("Dry run — exiting before any DB or file changes.")
         return 0
 
-    print("ERROR: real migration not yet implemented — stop here.", file=sys.stderr)
-    return 99
+    return run_migration(cfg, template=args.template)
+
+
+def run_migration(cfg: MigrationConfig, *, template: Path) -> int:
+    # Imports are local so `--dry-run` works without the ite_api package installed.
+    from ite_api.calibration.cal_loader import load_calibration_sheet, load_workbook
+    from ite_api.calibration.engine import RunConfig, SetpointWindow, run_one_logger
+    from ite_api.calibration.matcher import find_values_for_target
+    from ite_api.calibration.ref_loader import combine_refs, load_ref_auto
+    from ite_api.config import get_settings
+    from ite_api.db.models import AuditLog
+    from ite_api.db.models.calibration import (
+        CalibrationRun,
+        Logger,
+        LoggerResult,
+        RunCalibrationFile,
+        RunReferenceFile,
+    )
+    from ite_api.db.session import _init, _SessionLocal
+    from ite_api.storage import save_file
+
+    settings = get_settings()
+    _init()
+    assert _SessionLocal is not None
+
+    setpoint_windows_by_batch: dict[str, list[SetpointWindow]] = {}
+    for b in cfg.batches:
+        setpoint_windows_by_batch[b.name] = [
+            SetpointWindow(target=t, start=b.testing_start, end=b.testing_end)
+            for t in cfg.setpoints_c
+        ]
+
+    total_migrated = 0
+    total_skipped = 0
+
+    for batch in cfg.batches:
+        print(f"\n=== {batch.name} ===")
+        with _SessionLocal() as db:
+            run = CalibrationRun(
+                batch_name=batch.name,
+                status="complete",
+                testing_start=batch.testing_start,
+                testing_end=batch.testing_end,
+                certificate_date=batch.certificate_date,
+                threshold_c=cfg.threshold_c,
+                setpoints=[
+                    {
+                        "target_c": sp.target,
+                        "start_at": sp.start.isoformat(),
+                        "end_at": sp.end.isoformat(),
+                    }
+                    for sp in setpoint_windows_by_batch[batch.name]
+                ],
+                template_path=str(template),
+                start_cert_no=batch.start_cert_no,
+                cert_width=batch.cert_width,
+                test_date_jp=batch.test_date_jp,
+                doc_date_jp=batch.doc_date_jp,
+                completed_at=datetime.now(tz=batch.testing_end.tzinfo) if batch.testing_end.tzinfo else datetime.utcnow(),
+            )
+            db.add(run)
+            db.flush()
+
+            cal_bytes = batch.workbook.read_bytes()
+            cal_stored, cal_sha = save_file(
+                cal_bytes, run_id=run.id, sub="calibration",
+                original_name=batch.workbook.name, data_dir=settings.data_dir,
+            )
+            wb, sheet_names = load_workbook(cal_stored)
+            db.add(RunCalibrationFile(
+                run_id=run.id, original_name=batch.workbook.name,
+                stored_path=str(cal_stored), sha256=cal_sha,
+                sheet_names=sheet_names,
+            ))
+
+            for ref_path in batch.references:
+                rbytes = ref_path.read_bytes()
+                rstored, rsha = save_file(
+                    rbytes, run_id=run.id, sub="references",
+                    original_name=ref_path.name, data_dir=settings.data_dir,
+                )
+                db.add(RunReferenceFile(
+                    run_id=run.id, original_name=ref_path.name,
+                    stored_path=str(rstored), sha256=rsha,
+                ))
+
+            db.flush()
+
+            ref_df = combine_refs([load_ref_auto(p) for p in batch.references])
+            setpoints = setpoint_windows_by_batch[batch.name]
+            start = int(batch.start_cert_no)
+            certs_dir = settings.data_dir / "runs" / str(run.id) / "certificates"
+            certs_dir.mkdir(parents=True, exist_ok=True)
+
+            migrated_in_batch = 0
+            skipped_in_batch = 0
+
+            for idx, name in enumerate(sheet_names):
+                serial = name.strip()
+                existing = db.query(Logger).filter_by(serial_no=serial).first()
+                if existing is not None:
+                    print(f"  skip serial={serial} (already in DB)")
+                    skipped_in_batch += 1
+                    continue
+
+                cert_no = str(start + idx).zfill(batch.cert_width)
+                run_cfg = RunConfig(
+                    cert_no=cert_no,
+                    serial=serial,
+                    test_date_jp=batch.test_date_jp,
+                    doc_date_jp=batch.doc_date_jp,
+                    template_path=template,
+                    output_dir=certs_dir,
+                    setpoints=setpoints,
+                )
+                out_path = run_one_logger(run_cfg, sheet_name=name, wb=wb, ref_df=ref_df)
+
+                logger = Logger(serial_no=serial)
+                db.add(logger)
+                db.flush()
+
+                cal_df = load_calibration_sheet(wb, name)
+                per_sp = []
+                deviations: list[float] = []
+                for sp in setpoints:
+                    ref_v, cal_v, _ = find_values_for_target(
+                        cal_df, ref_df, sp.target, sp.start, sp.end
+                    )
+                    dev = abs(ref_v - cal_v) if (ref_v is not None and cal_v is not None) else None
+                    per_sp.append({
+                        "target_c": sp.target,
+                        "ref_c": ref_v,
+                        "cal_c": cal_v,
+                        "dev_c": round(dev, 3) if dev is not None else None,
+                        "within_tol": bool(dev is not None and dev <= cfg.threshold_c),
+                    })
+                    if dev is not None:
+                        deviations.append(dev)
+
+                max_dev = max(deviations) if deviations else None
+                verdict = "pass" if (max_dev is not None and max_dev <= cfg.threshold_c) else "fail"
+
+                db.add(LoggerResult(
+                    run_id=run.id,
+                    logger_id=logger.id,
+                    sheet_name=name,
+                    verdict=verdict,
+                    max_deviation_c=max_dev,
+                    per_setpoint=per_sp,
+                    cert_no=cert_no,
+                    cert_path=str(out_path),
+                ))
+                migrated_in_batch += 1
+
+            db.add(AuditLog(
+                user_id=None,
+                action="run.migrated",
+                run_id=run.id,
+                detail={
+                    "source": "scripts/migrate_historical.py",
+                    "workbook": batch.workbook.name,
+                    "migrated": migrated_in_batch,
+                    "skipped": skipped_in_batch,
+                },
+            ))
+            db.commit()
+            print(f"  migrated={migrated_in_batch}, skipped={skipped_in_batch}, run_id={run.id}")
+            total_migrated += migrated_in_batch
+            total_skipped += skipped_in_batch
+
+    print(f"\nTotal migrated: {total_migrated}, total skipped: {total_skipped}")
+    return 0
 
 
 if __name__ == "__main__":
