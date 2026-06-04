@@ -30,6 +30,13 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
+# Preflight: ensure Docker is accessible (fails fast under Task Scheduler if not in docker-users group).
+try { docker version | Out-Null }
+catch {
+    Write-Error "Docker is not running or this account cannot reach Docker. Backup aborted."
+    exit 1
+}
+
 $Date = Get-Date -Format "yyyyMMdd_HHmmss"
 $Dest = Join-Path $BackupDir $Date
 New-Item -ItemType Directory -Path $Dest -Force | Out-Null

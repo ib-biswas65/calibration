@@ -60,6 +60,11 @@ $envFile = Join-Path $scriptDir ".env"
 if (-not (Test-Path $envFile)) {
     Copy-Item (Join-Path $scriptDir ".env.example") $envFile
     Write-Host "    Created .env from .env.example" -ForegroundColor Yellow
+}
+
+# Validate that default placeholder secrets have been replaced.
+$envContent = Get-Content $envFile -Raw
+if ($envContent -match "changeme" -or $envContent -match "dev-only-change-me") {
     Write-Host ""
     Write-Host "    IMPORTANT: You must edit .env before continuing." -ForegroundColor Red
     Write-Host "    At minimum, change:" -ForegroundColor Red
@@ -68,8 +73,14 @@ if (-not (Test-Path $envFile)) {
     Write-Host "      ITE_JWT_SECRET=<random 32+ char string>" -ForegroundColor Red
     Write-Host "      ITE_ALLOWED_ORIGINS=http://localhost" -ForegroundColor Red
     Write-Host ""
-    Write-Host "    Opening .env in Notepad..." -ForegroundColor Yellow
+    Write-Host "    Opening .env in Notepad — close it to continue..." -ForegroundColor Yellow
     Start-Process notepad $envFile -Wait
+    # Re-check after edit.
+    $envContent = Get-Content $envFile -Raw
+    if ($envContent -match "changeme" -or $envContent -match "dev-only-change-me") {
+        Write-Error "Default secrets still present in .env. Please edit the file and re-run setup."
+        exit 1
+    }
 }
 Write-Host "    .env: OK" -ForegroundColor Green
 
@@ -83,7 +94,10 @@ foreach ($img in @("api", "web")) {
         exit 1
     }
     Write-Host "    Loading $img..." -NoNewline
-    Get-Content $tarPath -Encoding Byte -ReadCount 0 | docker load
+    # Use cmd to pipe the file — PowerShell 5's Get-Content byte pipe is unreliable with docker load.
+    $tarPathEsc = $tarPath.Replace('"', '\"')
+    cmd /c "docker load < `"$tarPathEsc`""
+    if ($LASTEXITCODE -ne 0) { Write-Error "docker load failed for $img"; exit 1 }
     Write-Host " done" -ForegroundColor Green
 }
 
@@ -121,6 +135,9 @@ if (-not (Test-Path $calData)) {
     Write-Error "Missing volume backup: $calData"
     exit 1
 }
+
+# Ensure the named volume exists before mounting it (Compose only creates it on service start).
+docker volume create ite-calibration_cal_data | Out-Null
 
 # Use a temporary alpine container to unpack the tarball into the named volume.
 # Docker bind-mount paths on Windows need forward slashes.
