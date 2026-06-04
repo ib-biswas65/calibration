@@ -24,7 +24,7 @@ describe("LoginPage", () => {
     wrap();
     await waitFor(() => screen.getByRole("button", { name: /sign in/i }));
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
   });
 
   it("shows validation error for invalid email", async () => {
@@ -34,7 +34,7 @@ describe("LoginPage", () => {
     wrap();
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/email/i), "not-an-email");
-    await user.type(screen.getByLabelText(/password/i), "anything");
+    await user.type(screen.getByLabelText(/^password$/i), "anything");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
     expect(await screen.findByText(/valid email/i)).toBeInTheDocument();
   });
