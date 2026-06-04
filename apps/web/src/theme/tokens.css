@@ -67,19 +67,64 @@
   --shadow-1: 0 1px 3px rgba(12,23,84,.06);
   --shadow-2: 0 4px 16px rgba(12,23,84,.08);
 
-  /* ── Transitions ─────────────────────────────────────────────────── */
-  --transition-fast: 150ms ease-out;
-  --transition-base: 200ms ease-out;
-  --transition-slow: 300ms ease-out;
+  /* ── Transitions — expo-out easing for high-refresh screens ─────── */
+  --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);   /* expo-out: snappy settle */
+  --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1); /* spring: slight overshoot */
+  --ease-in-out:     cubic-bezier(0.76, 0, 0.24, 1);   /* sharp in-out */
+
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Stagger step — add N × this as animation-delay for list items */
+  --stagger-step: 50ms;
 }
 
 /* ── Global keyframes ─────────────────────────────────────────────── */
 @keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes staggerIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  18%, 54%  { transform: translateX(-5px); }
+  36%, 72%  { transform: translateX(5px); }
+}
+
+@keyframes heroExit {
+  from { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateX(-28px) translateY(-18px) scale(0.68); }
+}
+
+@keyframes cardExit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.97) translateY(-8px); }
 }
 
 @keyframes processingPulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.55; }
 }
+
+/* ── Stagger utilities (used via nth-child selectors) ─────────────── */
+/* Delay classes: add to any animated element to offset entrance */
+.stagger-1 { animation-delay: 50ms !important; }
+.stagger-2 { animation-delay: 100ms !important; }
+.stagger-3 { animation-delay: 150ms !important; }
+.stagger-4 { animation-delay: 200ms !important; }

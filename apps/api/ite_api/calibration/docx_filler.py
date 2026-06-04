@@ -1,9 +1,8 @@
 """Word template filling — placeholder text replacement + results table writing."""
 
 from docx.document import Document as _DocType
-from docx.oxml.ns import qn as _qn  # re-export shim for clarity
 from docx.oxml.ns import qn
-from docx.table import _Cell, Table
+from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 
 
