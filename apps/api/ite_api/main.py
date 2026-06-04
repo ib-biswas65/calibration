@@ -23,12 +23,12 @@ _log = logging.getLogger(__name__)
 
 def _recover_stuck_runs() -> None:
     """Reset any runs left in 'processing' from a previous crashed/restarted instance."""
+    from ite_api.db import session as _db_session
     from ite_api.db.models.calibration import CalibrationRun
-    from ite_api.db.session import _init, _SessionLocal
 
-    _init()
-    assert _SessionLocal is not None
-    with _SessionLocal() as db:
+    _db_session._init()
+    assert _db_session._SessionLocal is not None
+    with _db_session._SessionLocal() as db:
         result = db.execute(
             update(CalibrationRun)
             .where(CalibrationRun.status == "processing")
