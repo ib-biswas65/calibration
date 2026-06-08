@@ -118,6 +118,7 @@ export interface UserOut {
   full_name: string;
   role: Role;
   disabled: boolean;
+  pending: boolean;
   created_at: string;
   last_login_at: string | null;
 }

@@ -17,10 +17,37 @@ export function AdminUsersPage() {
   const [setupUrl, setSetupUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState<UserOut | null>(null);
+  const [resendUrl, setResendUrl] = useState<{ userId: string; url: string } | null>(null);
+  const [resendCopied, setResendCopied] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<UserOut[]>({
     queryKey: ["users"],
     queryFn: () => apiFetch<UserOut[]>("/api/auth/users"),
+  });
+
+  const { data: pendingUsers = [] } = useQuery<UserOut[]>({
+    queryKey: ["users", "pending"],
+    queryFn: () => apiFetch<UserOut[]>("/api/auth/users/pending"),
+    refetchInterval: 30_000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (u: UserOut) =>
+      apiFetch(`/api/auth/users/${u.id}/approve`, { method: "POST" }),
+    onSuccess: (_data, u) => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast(`${u.full_name} approved — they can now sign in`, "success");
+    },
+    onError: () => toast("Failed to approve user", "error"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/auth/users/${id}/reject`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast("Registration request rejected", "success");
+    },
+    onError: () => toast("Failed to reject user", "error"),
   });
 
   const patchMutation = useMutation({
@@ -55,6 +82,26 @@ export function AdminUsersPage() {
     });
   }
 
+  async function handleResendInvite(u: UserOut) {
+    try {
+      const res = await apiFetch<{ setup_url: string }>(`/api/auth/users/${u.id}/invite`, { method: "POST" });
+      setResendUrl({ userId: u.id, url: res.setup_url });
+      setResendCopied(false);
+      toast("New invite link generated", "success");
+    } catch {
+      toast("Failed to generate invite link", "error");
+    }
+  }
+
+  function handleCopyResendUrl() {
+    if (!resendUrl) return;
+    const full = `${window.location.origin}${resendUrl.url}`;
+    navigator.clipboard.writeText(full).then(() => {
+      setResendCopied(true);
+      setTimeout(() => setResendCopied(false), 2000);
+    });
+  }
+
   function handleToggleDisable(u: UserOut) {
     if (!u.disabled) {
       setConfirmDisable(u);
@@ -86,6 +133,52 @@ export function AdminUsersPage() {
         </button>
       </div>
 
+      {pendingUsers.length > 0 && (
+        <div className={styles.pendingSection}>
+          <h3 className={styles.pendingHeading}>
+            Pending approval
+            <span className={styles.pendingBadge}>{pendingUsers.length}</span>
+          </h3>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Requested role</th>
+                <th>Submitted</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.full_name}</td>
+                  <td>{u.email}</td>
+                  <td style={{ textTransform: "capitalize" }}>{u.role}</td>
+                  <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className={styles.actions}>
+                    <button
+                      className={styles.approveBtn}
+                      onClick={() => approveMutation.mutate(u)}
+                      disabled={approveMutation.isPending}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className={styles.rejectBtn}
+                      onClick={() => rejectMutation.mutate(u.id)}
+                      disabled={rejectMutation.isPending}
+                    >
+                      Reject
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {showInvite && (
         <form className={styles.inviteForm} onSubmit={handleInvite}>
           <label className={styles.field}>
@@ -115,9 +208,24 @@ export function AdminUsersPage() {
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
+              <p className={styles.setupUrlNote}>This link expires in 7 days. If it expires, use the <strong>Resend invite</strong> button next to the user.</p>
             </div>
           )}
         </form>
+      )}
+
+      {resendUrl && (
+        <div className={styles.setupUrl}>
+          <strong>New invite link for user — share this with them:</strong>
+          <div className={styles.setupUrlRow}>
+            <code className={styles.setupUrlCode}>{window.location.origin}{resendUrl.url}</code>
+            <button type="button" className={styles.copyBtn} onClick={handleCopyResendUrl} aria-label="Copy invite link">
+              {resendCopied ? <Check size={14} /> : <Copy size={14} />}
+              {resendCopied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className={styles.setupUrlNote}>This link expires in 7 days.</p>
+        </div>
       )}
 
       {isLoading ? (
@@ -134,32 +242,53 @@ export function AdminUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className={u.disabled ? styles.disabled : ""}>
-                <td>{u.full_name}</td>
-                <td>{u.email}</td>
-                <td>
-                  <select
-                    value={u.role}
-                    onChange={(e) => patchMutation.mutate({ id: u.id, body: { role: e.target.value } })}
-                    className={styles.roleSelect}
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="engineer">Engineer</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </td>
-                <td>{u.disabled ? "Disabled" : "Active"}</td>
-                <td>
-                  <button
-                    className={styles.toggleBtn}
-                    onClick={() => handleToggleDisable(u)}
-                  >
-                    {u.disabled ? "Enable" : "Disable"}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const isPending = !u.disabled && u.last_login_at === null;
+              return (
+                <tr key={u.id} className={u.disabled ? styles.disabled : ""}>
+                  <td>{u.full_name}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    <select
+                      value={u.role}
+                      onChange={(e) => patchMutation.mutate({ id: u.id, body: { role: e.target.value } })}
+                      className={styles.roleSelect}
+                      disabled={u.disabled}
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="engineer">Engineer</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td>
+                    {u.disabled ? (
+                      <span className={styles.statusDisabled}>Disabled</span>
+                    ) : isPending ? (
+                      <span className={styles.statusPending}>Pending setup</span>
+                    ) : (
+                      <span className={styles.statusActive}>Active</span>
+                    )}
+                  </td>
+                  <td className={styles.actions}>
+                    {isPending && (
+                      <button
+                        className={styles.resendBtn}
+                        onClick={() => handleResendInvite(u)}
+                        title="Generate a new invite link"
+                      >
+                        Resend invite
+                      </button>
+                    )}
+                    <button
+                      className={styles.toggleBtn}
+                      onClick={() => handleToggleDisable(u)}
+                    >
+                      {u.disabled ? "Enable" : "Disable"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

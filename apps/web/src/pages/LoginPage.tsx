@@ -93,6 +93,10 @@ export function LoginPage() {
           Forgot password?
         </Link>
 
+        <Link to="/register" className={styles.forgotLink} style={{ textAlign: "left", marginBottom: 0 }}>
+          Don't have an account? Request access →
+        </Link>
+
         {submitErr && (
           <div key={submitErr} className={styles.error} role="alert">
             {submitErr}

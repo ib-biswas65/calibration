@@ -8,6 +8,7 @@ import { AppShell } from "./components/AppShell";
 import { ToastProvider } from "./components/Toast";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { CertificatePage } from "./pages/CertificatePage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { LoggersPage } from "./pages/LoggersPage";
@@ -29,6 +30,7 @@ export default function App() {
             <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
                 element={

@@ -156,3 +156,104 @@
   transition: border-color 0.12s, color 0.12s;
 }
 .toggleBtn:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
+
+.resendBtn {
+  background: none;
+  border: 1px solid var(--c-accent-200);
+  border-radius: var(--radius-pill);
+  padding: 3px var(--s-3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-brand-electric);
+  transition: background 0.12s, border-color 0.12s;
+}
+.resendBtn:hover { background: var(--c-accent-50); border-color: var(--color-brand-electric); }
+
+.actions { display: flex; gap: var(--s-2); align-items: center; }
+
+/* ── Status badges ───────────────────────────────────────────────── */
+.statusActive {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-pass);
+}
+.statusPending {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-warn, #b45309);
+}
+.statusDisabled {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+}
+
+/* ── Setup URL note ──────────────────────────────────────────────── */
+.setupUrlNote {
+  font-size: 12px;
+  color: var(--c-text-soft);
+  margin: 0;
+}
+
+/* ── Pending approvals section ───────────────────────────────────── */
+.pendingSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-warn, #d97706);
+  border-radius: var(--radius-card);
+  padding: var(--s-4);
+}
+
+.pendingHeading {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-warn, #b45309);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.pendingBadge {
+  background: var(--c-warn, #d97706);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 1px 7px;
+  line-height: 1.6;
+}
+
+.approveBtn {
+  background: var(--c-pass, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.approveBtn:hover:not(:disabled) { opacity: 0.85; }
+.approveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rejectBtn {
+  background: none;
+  border: 1px solid var(--c-fail, #dc2626);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--c-fail, #dc2626);
+  transition: background 0.12s;
+}
+.rejectBtn:hover:not(:disabled) { background: #fef2f2; }
+.rejectBtn:disabled { opacity: 0.5; cursor: not-allowed; }

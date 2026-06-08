@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { apiFetch } from "../api/client";
+import { ApiError, apiFetch } from "../api/client";
 import styles from "./LoginPage.module.css";
 
 export function ResetPasswordPage() {
@@ -43,8 +43,21 @@ export function ResetPasswordPage() {
         json: { token, password },
       });
       nav("/", { replace: true });
-    } catch {
-      setErr("This link is invalid or has already been used.");
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const detail = typeof e.detail === "object" && e.detail !== null
+          ? (e.detail as { detail?: string }).detail ?? ""
+          : String(e.detail ?? "");
+        if (detail === "expired") {
+          setErr("This invite link has expired. Ask your administrator to resend the invite from the Users page.");
+        } else if (detail === "already used") {
+          setErr("This link has already been used. If you need to reset your password, contact your administrator.");
+        } else {
+          setErr("This link is invalid. Please check the URL or ask your administrator for a new invite.");
+        }
+      } else {
+        setErr("Something went wrong. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }

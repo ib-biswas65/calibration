@@ -72,6 +72,8 @@ def login(
         record_failed_attempt(db, email=email)
         db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
+    if user.pending:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="pending_approval")
 
     s = get_settings()
     refresh = create_refresh_token()
@@ -150,10 +152,12 @@ def reset_password(
 
     token_hash = hash_refresh_token(body.token)
     pr = db.scalars(select(PasswordReset).where(PasswordReset.token_hash == token_hash)).first()
-    if pr is None or pr.used_at is not None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="invalid or already-used reset token")
+    if pr is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="invalid reset token")
+    if pr.used_at is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="already used")
     if pr.expires_at < datetime.now(UTC):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="reset token has expired")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="expired")
 
     user = db.get(User, pr.user_id)
     if user is None or user.disabled:
@@ -177,6 +181,42 @@ def reset_password(
     _set_auth_cookies(response, access=access, refresh=refresh)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    full_name: str
+    password: str
+    role: str = "engineer"
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(
+    body: RegisterRequest,
+    db: Session = Depends(get_session),
+) -> dict:
+    """Public self-registration — user sets their own password upfront.
+    Account is created as pending; admin approval lets them log in."""
+    if body.role not in ("engineer", "viewer"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid role")
+    if len(body.password) < 8:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password_too_short")
+
+    email = body.email.lower()
+    if db.execute(select(User).where(func.lower(User.email) == email)).scalar_one_or_none():
+        return {"status": "pending"}  # don't reveal whether email exists
+
+    user = User(
+        email=email,
+        full_name=body.full_name,
+        role=body.role,
+        pending=True,
+        password_hash=hash_password(body.password),
+    )
+    db.add(user)
+    db.commit()
+    write_audit(db, user_id=user.id, action="user.registered", detail={"email": email})
+    return {"status": "pending"}
 
 
 class ChangePasswordRequest(BaseModel):

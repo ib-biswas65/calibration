@@ -42,8 +42,20 @@ def _recover_stuck_runs() -> None:
             _log.warning("Recovered %d stuck processing run(s) → 'failed'", result.rowcount)
 
 
+def _run_migrations() -> None:
+    """Apply any pending Alembic migrations on startup."""
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config("/app/alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", get_settings().database_url)
+    command.upgrade(cfg, "head")
+    _log.info("Database migrations applied.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _run_migrations()
     _recover_stuck_runs()
     yield
 

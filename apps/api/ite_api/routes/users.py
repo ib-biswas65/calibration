@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     disabled: bool
+    pending: bool
     created_at: datetime
     last_login_at: datetime | None
 
@@ -47,7 +48,21 @@ def list_users(
     users = db.scalars(select(User).order_by(User.created_at)).all()
     return [UserOut(
         id=str(u.id), email=u.email, full_name=u.full_name,
-        role=u.role, disabled=u.disabled,
+        role=u.role, disabled=u.disabled, pending=u.pending,
+        created_at=u.created_at, last_login_at=u.last_login_at,
+    ) for u in users]
+
+
+@router.get("/pending", response_model=list[UserOut])
+def list_pending_users(
+    db: Session = Depends(get_session),
+    admin: User = require_role("admin"),
+):
+    """Return only users awaiting approval."""
+    users = db.scalars(select(User).where(User.pending == True).order_by(User.created_at)).all()  # noqa: E712
+    return [UserOut(
+        id=str(u.id), email=u.email, full_name=u.full_name,
+        role=u.role, disabled=u.disabled, pending=u.pending,
         created_at=u.created_at, last_login_at=u.last_login_at,
     ) for u in users]
 
@@ -73,9 +88,9 @@ def create_user(
     db.add(user)
     db.flush()
 
-    # Create a 24h password-reset (setup) token
+    # Create a 7-day password-reset (setup) token
     raw_token = create_refresh_token()
-    expires = datetime.now(UTC) + timedelta(hours=24)
+    expires = datetime.now(UTC) + timedelta(days=7)
     pr = PasswordReset(
         user_id=user.id,
         token_hash=hash_refresh_token(raw_token),
@@ -88,6 +103,71 @@ def create_user(
     # In v1 (no SMTP) return the setup link for the admin to share manually
     setup_url = f"/reset-password?token={raw_token}"
     return {"user_id": str(user.id), "setup_url": setup_url}
+
+
+@router.post("/{user_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
+def approve_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_session),
+    admin: User = require_role("admin"),
+):
+    """Approve a self-registered pending user — they can now log in immediately."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    if not user.pending:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="user is not pending approval")
+
+    user.pending = False
+    db.commit()
+    write_audit(db, user_id=admin.id, action="user.approved", detail={"target_user_id": str(user_id)})
+
+
+@router.post("/{user_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+def reject_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_session),
+    admin: User = require_role("admin"),
+):
+    """Reject and permanently delete a pending registration request."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    if not user.pending:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="user is not pending approval")
+
+    write_audit(db, user_id=admin.id, action="user.rejected", detail={"email": user.email})
+    db.delete(user)
+    db.commit()
+
+
+@router.post("/{user_id}/invite", response_model=dict)
+def resend_invite(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_session),
+    admin: User = require_role("admin"),
+):
+    """Generate a fresh 7-day setup link for a user who has not yet logged in."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    if user.disabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="user is disabled")
+    if user.last_login_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="user has already logged in — use password reset instead")
+
+    raw_token = create_refresh_token()
+    expires = datetime.now(UTC) + timedelta(days=7)
+    db.add(PasswordReset(
+        user_id=user.id,
+        token_hash=hash_refresh_token(raw_token),
+        expires_at=expires,
+    ))
+    db.commit()
+    write_audit(db, user_id=admin.id, action="user.invite_resent", detail={"target_user_id": str(user_id)})
+
+    setup_url = f"/reset-password?token={raw_token}"
+    return {"setup_url": setup_url}
 
 
 @router.patch("/{user_id}", response_model=UserOut)
@@ -112,6 +192,6 @@ def patch_user(
     db.refresh(user)
     return UserOut(
         id=str(user.id), email=user.email, full_name=user.full_name,
-        role=user.role, disabled=user.disabled,
+        role=user.role, disabled=user.disabled, pending=user.pending,
         created_at=user.created_at, last_login_at=user.last_login_at,
     )
