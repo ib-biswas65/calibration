@@ -21,7 +21,9 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
+import unicodedata
+
+from pydantic import BaseModel, field_validator
 from sqlalchemy import case, delete, func, select, update as sql_update
 from sqlalchemy.orm import Session
 
@@ -72,6 +74,30 @@ class RunCreateRequest(BaseModel):
     cert_width: int = 10
     test_date_jp: str
     doc_date_jp: str
+
+    @field_validator("batch_name", "test_date_jp", "doc_date_jp", mode="before")
+    @classmethod
+    def normalize_unicode(cls, v: object) -> object:
+        """NFC-normalise text fields so multi-byte characters survive the round-trip."""
+        if isinstance(v, str):
+            return unicodedata.normalize("NFC", v)
+        return v
+
+
+class RenameRunRequest(BaseModel):
+    batch_name: str
+
+    @field_validator("batch_name", mode="before")
+    @classmethod
+    def normalize_and_validate(cls, v: object) -> object:
+        if not isinstance(v, str):
+            raise ValueError("batch_name must be a string")
+        v = unicodedata.normalize("NFC", v.strip())
+        if not v:
+            raise ValueError("batch_name cannot be empty")
+        if len(v) > 200:
+            raise ValueError("batch_name must be 200 characters or fewer")
+        return v
 
 
 class RunSummary(BaseModel):
@@ -267,6 +293,24 @@ def patch_run(
     db.commit()
     db.refresh(run)
     write_audit(db, user_id=user.id, run_id=run.id, action="run.updated")
+    return _run_detail(run, db)
+
+
+@router.patch("/{run_id}/rename", response_model=RunDetail)
+def rename_run(
+    run_id: uuid.UUID,
+    body: RenameRunRequest,
+    db: Session = Depends(get_session),
+    user: User = require_role("admin"),
+):
+    """Rename a run regardless of its status (admin only)."""
+    run = _get_run_or_404(run_id, db)
+    old_name = run.batch_name
+    run.batch_name = body.batch_name
+    db.commit()
+    db.refresh(run)
+    write_audit(db, user_id=user.id, run_id=run.id, action="run.renamed",
+                detail={"old_name": old_name, "new_name": body.batch_name})
     return _run_detail(run, db)
 
 

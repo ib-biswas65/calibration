@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Download, LayoutGrid, List, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronRight, Download, LayoutGrid, List, Pencil, RefreshCw, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../api/client";
@@ -73,9 +73,51 @@ export function RunDetailPage() {
   const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail">("");
   const [retrying, setRetrying] = useState(false);
 
+  // Inline batch name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
   // Results table sort state
   const [resultSortKey, setResultSortKey] = useState<ResultSortKey>("cert_no");
   const [resultSortDir, setResultSortDir] = useState<SortDir>("asc");
+
+  const { data: me } = useQuery<{ role: string }>({
+    queryKey: ["me"],
+    queryFn: () => apiFetch("/api/auth/me"),
+    staleTime: Infinity,
+  });
+  const isAdmin = me?.role === "admin";
+
+  const renameMutation = useMutation({
+    mutationFn: (newName: string) =>
+      apiFetch<RunDetail>(`/api/runs/${id}/rename`, {
+        method: "PATCH",
+        json: { batch_name: newName.trim().normalize("NFC") },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["run", id] });
+      qc.invalidateQueries({ queryKey: ["runs"] });
+      setEditingName(false);
+      toast("Batch name updated", "success");
+    },
+    onError: () => toast("Failed to rename batch", "error"),
+  });
+
+  function startEditing() {
+    setNameInput(run?.batch_name ?? "");
+    setEditingName(true);
+  }
+
+  function cancelEditing() {
+    setEditingName(false);
+    setNameInput("");
+  }
+
+  function submitRename() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === run?.batch_name) { cancelEditing(); return; }
+    renameMutation.mutate(trimmed);
+  }
 
   const { data: run, isLoading, error } = useQuery<RunDetail>({
     queryKey: ["run", id],
@@ -173,14 +215,60 @@ export function RunDetailPage() {
           Calibrations
         </button>
         <ChevronRight size={13} className={styles.breadcrumbSep} aria-hidden="true" />
-        <span className={styles.breadcrumbCurrent}>{run.batch_name}</span>
+        <span className={styles.breadcrumbCurrent}>
+          {editingName ? nameInput || run.batch_name : run.batch_name}
+        </span>
       </nav>
 
       {/* ── Header ── */}
       <div className={styles.header}>
         <div className={styles.headerRow}>
           <div className={styles.headerLeft}>
-            <h2 className={styles.heading}>{run.batch_name}</h2>
+            {editingName ? (
+              <div className={styles.headingEditRow}>
+                <input
+                  className={styles.headingInput}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitRename();
+                    if (e.key === "Escape") cancelEditing();
+                  }}
+                  autoFocus
+                  maxLength={200}
+                  aria-label="Edit batch name"
+                />
+                <button
+                  className={styles.editConfirmBtn}
+                  onClick={submitRename}
+                  disabled={renameMutation.isPending}
+                  aria-label="Save name"
+                >
+                  <Check size={15} />
+                </button>
+                <button
+                  className={styles.editCancelBtn}
+                  onClick={cancelEditing}
+                  aria-label="Cancel edit"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className={styles.headingRow}>
+                <h2 className={styles.heading}>{run.batch_name}</h2>
+                {isAdmin && (
+                  <button
+                    className={styles.editNameBtn}
+                    onClick={startEditing}
+                    aria-label="Edit batch name"
+                    title="Rename batch"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+            )}
             <div className={styles.headMeta}>
               <StatusPill value={run.status} />
               <span className={styles.metaDot}>·</span>

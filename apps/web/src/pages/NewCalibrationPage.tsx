@@ -81,7 +81,7 @@ export function NewCalibrationPage() {
       const run = await apiFetch<RunDetail>("/api/runs", {
         method: "POST",
         json: {
-          batch_name: batchName,
+          batch_name: batchName.trim().normalize("NFC"),
           testing_start: testingStart ? testingStart + ":00Z" : new Date().toISOString(),
           testing_end: testingEnd ? testingEnd + ":00Z" : new Date().toISOString(),
           certificate_date: certDate,
