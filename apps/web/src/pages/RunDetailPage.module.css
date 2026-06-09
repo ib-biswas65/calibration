@@ -347,43 +347,52 @@
 .cardDev { font-size: 11px; color: var(--c-text-mute); }
 .cardDevFail { color: var(--c-fail); font-weight: 600; }
 
-/* ── Batch config (collapsible) ───────────────────────────────────── */
-.batchConfig {
+/* ── Config strip (always visible, top of page) ───────────────────── */
+.configStrip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
-  overflow: hidden;
-}
-
-.batchConfigSummary {
   padding: var(--s-4) var(--s-5);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--c-text-mute);
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  flex-wrap: wrap;
+  row-gap: var(--s-3);
+  column-gap: var(--s-4);
 }
-.batchConfigSummary::before { content: "›"; transition: transform var(--transition-fast); }
-details[open] .batchConfigSummary::before { transform: rotate(90deg); }
 
-.batchConfigBody {
-  padding: var(--s-4) var(--s-5) var(--s-5);
-  border-top: 1px solid var(--c-border);
+.configItem {
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  gap: 3px;
+  min-width: 0;
 }
 
-.cfgGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3) var(--s-5); }
-.cfgItem { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--c-text); }
-.cfgLabel { font-size: 10px; font-weight: 600; color: var(--c-text-mute); text-transform: uppercase; letter-spacing: 0.07em; }
+.configLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
 
-.cfgSetpoints { display: flex; flex-direction: column; gap: var(--s-2); }
-.setpointList { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.configVal {
+  font-size: 13px;
+  color: var(--c-text);
+  white-space: nowrap;
+}
+
+.configDivider {
+  width: 1px;
+  background: var(--c-border);
+  align-self: stretch;
+  flex-shrink: 0;
+  margin: 0 var(--s-3);
+}
+
+.setpointChips { display: flex; gap: var(--s-1); flex-wrap: wrap; }
+
 .setpointChip {
   background: var(--c-accent-50);
   color: var(--color-brand-electric);
@@ -392,6 +401,17 @@ details[open] .batchConfigSummary::before { transform: rotate(90deg); }
   font-size: 12px;
   font-weight: 500;
 }
+
+/* ── Sortable column headers ──────────────────────────────────────── */
+.thSort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+.thSort:hover { color: var(--color-brand-electric); }
+.thSortActive { color: var(--color-boardroom-navy) !important; }
+.sortIconInactive { color: var(--c-text-mute); opacity: 0.45; vertical-align: middle; }
 
 .muted { color: var(--c-text-mute); }
 .empty { padding: var(--s-6); text-align: center; color: var(--c-text-mute); font-size: 14px; }

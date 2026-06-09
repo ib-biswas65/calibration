@@ -93,7 +93,7 @@ export function NewCalibrationPage() {
           })),
           start_cert_no: startCertNo,
           cert_width: parseInt(certWidth),
-          test_date_jp: jpDate(certDate),
+          test_date_jp: testingStart ? jpDate(testingStart) : jpDate(certDate),
           doc_date_jp: jpDate(certDate),
         },
       });

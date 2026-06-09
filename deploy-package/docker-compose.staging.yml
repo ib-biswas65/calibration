@@ -1,0 +1,32 @@
+# Staging overlay — run alongside the main compose file to spin up a staging stack
+# on a different port with an isolated database volume.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml down
+#
+# Access staging at http://localhost:8080
+# Production continues to run on http://localhost:80
+
+name: ite-calibration-staging
+
+services:
+  postgres:
+    volumes:
+      - pg_staging_data:/var/lib/postgresql/data
+
+  api:
+    image: ite-calibration-api:staging
+    volumes:
+      - cal_staging_data:/var/lib/ite-calibration/data
+
+  web:
+    image: ite-calibration-web:staging
+
+  edge:
+    ports:
+      - "8080:80"    # staging on 8080; production stays on 80
+
+volumes:
+  pg_staging_data:
+  cal_staging_data:

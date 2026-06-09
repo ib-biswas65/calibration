@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import type { RunSummary } from "../api/types";
+import { SortIcon, type SortDir } from "../components/SortIcon";
 import { StatusPill } from "../components/StatusPill";
 import styles from "./HistoryPage.module.css";
 
 type SortKey = "batch_name" | "created_at" | "pass_rate" | "max_deviation_c";
-type SortDir = "asc" | "desc";
 
 function fmt(dt: string) {
   return new Date(dt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -27,13 +27,6 @@ function PassRateBar({ rate }: { rate: number | null }) {
       <span className={styles.rateVal}>{rate.toFixed(1)}%</span>
     </div>
   );
-}
-
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <ChevronsUpDown size={12} aria-hidden="true" className={styles.sortIconInactive} />;
-  return dir === "asc"
-    ? <ChevronUp size={12} aria-hidden="true" />
-    : <ChevronDown size={12} aria-hidden="true" />;
 }
 
 function SkeletonRow() {
@@ -169,18 +162,18 @@ export function HistoryPage() {
           <thead>
             <tr>
               <th {...thProps("batch_name")}>
-                Batch name <SortIcon active={sortKey === "batch_name"} dir={sortDir} />
+                Batch name <SortIcon active={sortKey === "batch_name"} dir={sortDir} className={styles.sortIconInactive} />
               </th>
               <th>Status</th>
               <th className={styles.colNum}>Loggers</th>
               <th {...thProps("pass_rate")} className={`${styles.thSort} ${sortKey === "pass_rate" ? styles.thSortActive : ""} ${styles.colWide}`}>
-                Pass rate <SortIcon active={sortKey === "pass_rate"} dir={sortDir} />
+                Pass rate <SortIcon active={sortKey === "pass_rate"} dir={sortDir} className={styles.sortIconInactive} />
               </th>
               <th {...thProps("max_deviation_c")} className={`${styles.thSort} ${sortKey === "max_deviation_c" ? styles.thSortActive : ""} ${styles.colNum}`}>
-                Max dev. <SortIcon active={sortKey === "max_deviation_c"} dir={sortDir} />
+                Max dev. <SortIcon active={sortKey === "max_deviation_c"} dir={sortDir} className={styles.sortIconInactive} />
               </th>
               <th {...thProps("created_at")} className={`${styles.thSort} ${sortKey === "created_at" ? styles.thSortActive : ""} ${styles.colNum}`}>
-                Date <SortIcon active={sortKey === "created_at"} dir={sortDir} />
+                Date <SortIcon active={sortKey === "created_at"} dir={sortDir} className={styles.sortIconInactive} />
               </th>
             </tr>
           </thead>
