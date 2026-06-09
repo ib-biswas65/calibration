@@ -20,6 +20,9 @@ def _init() -> None:
             pool_pre_ping=True,   # discard stale connections (important after idle/restart)
             pool_recycle=1800,    # recycle connections after 30 min
             pool_timeout=30,
+            # Force UTF-8 on every connection — prevents multi-byte characters
+            # (Japanese, special punctuation, etc.) from being silently corrupted to '?'.
+            connect_args={"client_encoding": "utf8"},
         )
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
 

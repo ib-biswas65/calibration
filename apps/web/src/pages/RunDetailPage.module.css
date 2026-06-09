@@ -59,6 +59,83 @@
 }
 
 .headMeta { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+
+/* ── Inline batch name editing ────────────────────────────────────── */
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.editNameBtn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--c-text-mute);
+  border-radius: var(--radius-badge);
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+.headingRow:hover .editNameBtn { opacity: 1; }
+.editNameBtn:hover { color: var(--color-brand-electric); }
+
+.headingEditRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.headingInput {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
+  border: none;
+  border-bottom: 2px solid var(--color-brand-electric);
+  background: transparent;
+  outline: none;
+  padding: 0 0 2px 0;
+  min-width: 240px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.editConfirmBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-pass);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+.editConfirmBtn:hover:not(:disabled) { opacity: 0.85; }
+.editConfirmBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.editCancelBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--c-text-mute);
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.editCancelBtn:hover { border-color: var(--c-fail); color: var(--c-fail); }
 .metaDot  { color: var(--c-text-mute); }
 .metaText { font-size: 13px; color: var(--c-text-mute); }
 
@@ -347,43 +424,52 @@
 .cardDev { font-size: 11px; color: var(--c-text-mute); }
 .cardDevFail { color: var(--c-fail); font-weight: 600; }
 
-/* ── Batch config (collapsible) ───────────────────────────────────── */
-.batchConfig {
+/* ── Config strip (always visible, top of page) ───────────────────── */
+.configStrip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
-  overflow: hidden;
-}
-
-.batchConfigSummary {
   padding: var(--s-4) var(--s-5);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--c-text-mute);
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  flex-wrap: wrap;
+  row-gap: var(--s-3);
+  column-gap: var(--s-4);
 }
-.batchConfigSummary::before { content: "›"; transition: transform var(--transition-fast); }
-details[open] .batchConfigSummary::before { transform: rotate(90deg); }
 
-.batchConfigBody {
-  padding: var(--s-4) var(--s-5) var(--s-5);
-  border-top: 1px solid var(--c-border);
+.configItem {
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  gap: 3px;
+  min-width: 0;
 }
 
-.cfgGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3) var(--s-5); }
-.cfgItem { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--c-text); }
-.cfgLabel { font-size: 10px; font-weight: 600; color: var(--c-text-mute); text-transform: uppercase; letter-spacing: 0.07em; }
+.configLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
 
-.cfgSetpoints { display: flex; flex-direction: column; gap: var(--s-2); }
-.setpointList { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.configVal {
+  font-size: 13px;
+  color: var(--c-text);
+  white-space: nowrap;
+}
+
+.configDivider {
+  width: 1px;
+  background: var(--c-border);
+  align-self: stretch;
+  flex-shrink: 0;
+  margin: 0 var(--s-3);
+}
+
+.setpointChips { display: flex; gap: var(--s-1); flex-wrap: wrap; }
+
 .setpointChip {
   background: var(--c-accent-50);
   color: var(--color-brand-electric);
@@ -392,6 +478,17 @@ details[open] .batchConfigSummary::before { transform: rotate(90deg); }
   font-size: 12px;
   font-weight: 500;
 }
+
+/* ── Sortable column headers ──────────────────────────────────────── */
+.thSort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+.thSort:hover { color: var(--color-brand-electric); }
+.thSortActive { color: var(--color-boardroom-navy) !important; }
+.sortIconInactive { color: var(--c-text-mute); opacity: 0.45; vertical-align: middle; }
 
 .muted { color: var(--c-text-mute); }
 .empty { padding: var(--s-6); text-align: center; color: var(--c-text-mute); font-size: 14px; }

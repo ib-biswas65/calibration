@@ -1,14 +1,16 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Download, LayoutGrid, List, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronRight, Download, LayoutGrid, List, Pencil, RefreshCw, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import type { LoggerResult, RunDetail } from "../api/types";
+import { SortIcon, type SortDir } from "../components/SortIcon";
 import { StatusPill } from "../components/StatusPill";
 import { useToast } from "../components/Toast";
 import styles from "./RunDetailPage.module.css";
 
 type ViewMode = "table" | "cards";
+type ResultSortKey = "cert_no" | "sheet_name" | "verdict" | "max_deviation_c";
 
 function fmt(dt: string) {
   return new Date(dt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -71,6 +73,52 @@ export function RunDetailPage() {
   const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail">("");
   const [retrying, setRetrying] = useState(false);
 
+  // Inline batch name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
+  // Results table sort state
+  const [resultSortKey, setResultSortKey] = useState<ResultSortKey>("cert_no");
+  const [resultSortDir, setResultSortDir] = useState<SortDir>("asc");
+
+  const { data: me } = useQuery<{ role: string }>({
+    queryKey: ["me"],
+    queryFn: () => apiFetch("/api/auth/me"),
+    staleTime: Infinity,
+  });
+  const isAdmin = me?.role === "admin";
+
+  const renameMutation = useMutation({
+    mutationFn: (newName: string) =>
+      apiFetch<RunDetail>(`/api/runs/${id}/rename`, {
+        method: "PATCH",
+        json: { batch_name: newName.trim().normalize("NFC") },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["run", id] });
+      qc.invalidateQueries({ queryKey: ["runs"] });
+      setEditingName(false);
+      toast("Batch name updated", "success");
+    },
+    onError: () => toast("Failed to rename batch", "error"),
+  });
+
+  function startEditing() {
+    setNameInput(run?.batch_name ?? "");
+    setEditingName(true);
+  }
+
+  function cancelEditing() {
+    setEditingName(false);
+    setNameInput("");
+  }
+
+  function submitRename() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === run?.batch_name) { cancelEditing(); return; }
+    renameMutation.mutate(trimmed);
+  }
+
   const { data: run, isLoading, error } = useQuery<RunDetail>({
     queryKey: ["run", id],
     queryFn: () => apiFetch<RunDetail>(`/api/runs/${id}`),
@@ -83,7 +131,8 @@ export function RunDetailPage() {
   const filtered = useMemo(() => {
     if (!run) return [];
     const q = search.toLowerCase();
-    return (run.results ?? []).filter((r) => {
+
+    let rows = (run.results ?? []).filter((r) => {
       const matchSearch =
         !q ||
         (r.cert_no?.toLowerCase().includes(q) ?? false) ||
@@ -91,7 +140,21 @@ export function RunDetailPage() {
       const matchVerdict = !verdictFilter || r.verdict === verdictFilter;
       return matchSearch && matchVerdict;
     });
-  }, [run, search, verdictFilter]);
+
+    rows.sort((a, b) => {
+      let av: string | number | null, bv: string | number | null;
+      if (resultSortKey === "cert_no")         { av = a.cert_no ?? ""; bv = b.cert_no ?? ""; }
+      else if (resultSortKey === "sheet_name") { av = a.sheet_name;    bv = b.sheet_name; }
+      else if (resultSortKey === "verdict")    { av = a.verdict;        bv = b.verdict; }
+      else /* max_deviation_c */               { av = a.max_deviation_c ?? -1; bv = b.max_deviation_c ?? -1; }
+
+      if (av === bv) return 0;
+      const cmp = av < bv ? -1 : 1;
+      return resultSortDir === "asc" ? cmp : -cmp;
+    });
+
+    return rows;
+  }, [run, search, verdictFilter, resultSortKey, resultSortDir]);
 
   const stats = useMemo(() => {
     const results = run?.results ?? [];
@@ -109,6 +172,23 @@ export function RunDetailPage() {
       maxDev: devs.length > 0 ? Math.max(...devs).toFixed(2) : null,
     };
   }, [run]);
+
+  function handleResultSort(key: ResultSortKey) {
+    if (resultSortKey === key) {
+      setResultSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setResultSortKey(key);
+      setResultSortDir("asc");
+    }
+  }
+
+  const thSortProps = (key: ResultSortKey) => ({
+    className: `${styles.thSort} ${resultSortKey === key ? styles.thSortActive : ""}`,
+    onClick: () => handleResultSort(key),
+    "aria-sort": (resultSortKey === key
+      ? resultSortDir === "asc" ? "ascending" : "descending"
+      : "none") as React.AriaAttributes["aria-sort"],
+  });
 
   async function handleRetry() {
     if (!id) return;
@@ -135,14 +215,60 @@ export function RunDetailPage() {
           Calibrations
         </button>
         <ChevronRight size={13} className={styles.breadcrumbSep} aria-hidden="true" />
-        <span className={styles.breadcrumbCurrent}>{run.batch_name}</span>
+        <span className={styles.breadcrumbCurrent}>
+          {editingName ? nameInput || run.batch_name : run.batch_name}
+        </span>
       </nav>
 
       {/* ── Header ── */}
       <div className={styles.header}>
         <div className={styles.headerRow}>
           <div className={styles.headerLeft}>
-            <h2 className={styles.heading}>{run.batch_name}</h2>
+            {editingName ? (
+              <div className={styles.headingEditRow}>
+                <input
+                  className={styles.headingInput}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitRename();
+                    if (e.key === "Escape") cancelEditing();
+                  }}
+                  autoFocus
+                  maxLength={200}
+                  aria-label="Edit batch name"
+                />
+                <button
+                  className={styles.editConfirmBtn}
+                  onClick={submitRename}
+                  disabled={renameMutation.isPending}
+                  aria-label="Save name"
+                >
+                  <Check size={15} />
+                </button>
+                <button
+                  className={styles.editCancelBtn}
+                  onClick={cancelEditing}
+                  aria-label="Cancel edit"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className={styles.headingRow}>
+                <h2 className={styles.heading}>{run.batch_name}</h2>
+                {isAdmin && (
+                  <button
+                    className={styles.editNameBtn}
+                    onClick={startEditing}
+                    aria-label="Edit batch name"
+                    title="Rename batch"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+            )}
             <div className={styles.headMeta}>
               <StatusPill value={run.status} />
               <span className={styles.metaDot}>·</span>
@@ -167,6 +293,56 @@ export function RunDetailPage() {
             </a>
           )}
         </div>
+      </div>
+
+      {/* ── Config strip (always visible, below header) ── */}
+      <div className={styles.configStrip}>
+        <div className={styles.configItem}>
+          <span className={styles.configLabel}>Test date</span>
+          <span className={styles.configVal}>{run.test_date_jp}</span>
+        </div>
+        <div className={styles.configDivider} />
+        <div className={styles.configItem}>
+          <span className={styles.configLabel}>Cert date</span>
+          <span className={styles.configVal}>{run.doc_date_jp}</span>
+        </div>
+        <div className={styles.configDivider} />
+        <div className={styles.configItem}>
+          <span className={styles.configLabel}>Threshold</span>
+          <span className={styles.configVal}>±{run.threshold_c}°C</span>
+        </div>
+        <div className={styles.configDivider} />
+        <div className={styles.configItem}>
+          <span className={styles.configLabel}>Start cert no.</span>
+          <span className={styles.configVal}>{run.start_cert_no}</span>
+        </div>
+        <div className={styles.configDivider} />
+        <div className={styles.configItem}>
+          <span className={styles.configLabel}>Setpoints</span>
+          <div className={styles.setpointChips}>
+            {run.setpoints.map((sp: { target_c: number }) => (
+              <span key={sp.target_c} className={styles.setpointChip}>
+                {sp.target_c > 0 ? "+" : ""}{sp.target_c}°C
+              </span>
+            ))}
+          </div>
+        </div>
+        {(run.reference_files.length > 0 || run.calibration_file) && (
+          <>
+            <div className={styles.configDivider} />
+            <div className={styles.configItem}>
+              <span className={styles.configLabel}>Files</span>
+              <span className={styles.configVal}>
+                {[
+                  ...run.reference_files.map((f) => f.original_name),
+                  run.calibration_file?.original_name,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {run.failure_reason && (
@@ -258,13 +434,25 @@ export function RunDetailPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Cert no.</th>
-                  <th>Logger serial</th>
-                  <th>Verdict</th>
+                  <th {...thSortProps("cert_no")}>
+                    Cert no.{" "}
+                    <SortIcon active={resultSortKey === "cert_no"} dir={resultSortDir} className={styles.sortIconInactive} />
+                  </th>
+                  <th {...thSortProps("sheet_name")}>
+                    Logger serial{" "}
+                    <SortIcon active={resultSortKey === "sheet_name"} dir={resultSortDir} className={styles.sortIconInactive} />
+                  </th>
+                  <th {...thSortProps("verdict")}>
+                    Verdict{" "}
+                    <SortIcon active={resultSortKey === "verdict"} dir={resultSortDir} className={styles.sortIconInactive} />
+                  </th>
                   {run.results[0]?.per_setpoint.map((sp) => (
                     <th key={sp.target_c}>{sp.target_c > 0 ? "+" : ""}{sp.target_c}°C</th>
                   ))}
-                  <th>Max dev.</th>
+                  <th {...thSortProps("max_deviation_c")}>
+                    Max dev.{" "}
+                    <SortIcon active={resultSortKey === "max_deviation_c"} dir={resultSortDir} className={styles.sortIconInactive} />
+                  </th>
                   <th></th>
                 </tr>
               </thead>
@@ -315,49 +503,6 @@ export function RunDetailPage() {
           </div>
         )}
       </div>
-
-      {/* ── Batch configuration (collapsible) ── */}
-      <details className={styles.batchConfig}>
-        <summary className={styles.batchConfigSummary}>Batch configuration</summary>
-        <div className={styles.batchConfigBody}>
-          <div className={styles.cfgGrid}>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Test date</span>
-              <span>{run.test_date_jp}</span>
-            </div>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Cert date</span>
-              <span>{run.doc_date_jp}</span>
-            </div>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Threshold</span>
-              <span>±{run.threshold_c}°C</span>
-            </div>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Start cert no.</span>
-              <span>{run.start_cert_no}</span>
-            </div>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Reference files</span>
-              <span>{run.reference_files.map((f) => f.original_name).join(", ") || "—"}</span>
-            </div>
-            <div className={styles.cfgItem}>
-              <span className={styles.cfgLabel}>Calibration file</span>
-              <span>{run.calibration_file?.original_name ?? "—"}</span>
-            </div>
-          </div>
-          <div className={styles.cfgSetpoints}>
-            <span className={styles.cfgLabel}>Setpoints</span>
-            <div className={styles.setpointList}>
-              {run.setpoints.map((sp: { target_c: number; start_at: string; end_at: string }) => (
-                <span key={sp.target_c} className={styles.setpointChip}>
-                  {sp.target_c > 0 ? "+" : ""}{sp.target_c}°C
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </details>
     </div>
   );
 }
