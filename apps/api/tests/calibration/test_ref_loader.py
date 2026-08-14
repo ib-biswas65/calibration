@@ -41,3 +41,15 @@ def test_combine_refs_concatenates_and_sorts(reference_csv):
     assert len(combined) == 2 * len(df1)
     ts = combined["timestamp"].tolist()
     assert ts == sorted(ts)
+
+
+def test_detect_and_load_unpadded_secondless_dates(tmp_path):
+    """Regression: real logger hardware exports non-zero-padded M/D and no
+    seconds (e.g. `2026/8/10 16:56`) — run c0d7b4c7 failed on this 2026-08-13."""
+    p = tmp_path / "u.csv"
+    p.write_text("1,2026/8/10 16:56,23.7,--\r\n2,2026/8/10 17:01,25.8,--\r\n")
+    assert detect_format(p) == "indexed"
+    df = load_ref_auto(p)
+    assert len(df) == 2
+    assert df["timestamp"].iloc[0] == pd.Timestamp("2026-08-10 16:56:00")
+    assert df["temp"].tolist() == [23.7, 25.8]

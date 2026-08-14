@@ -2,6 +2,13 @@
 
 One-shot operational scripts. Not part of the API runtime.
 
+> **Historical note (2026-08-14):** these scripts were written for the initial
+> data migration and reference paths that no longer exist in the repo — the
+> legacy `Old Method/` input folder and the repo-root `template.docx` (the
+> certificate template now lives at `apps/api/ite_api/calibration/template.docx`).
+> If you need to re-run one, source the legacy inputs from backups and adjust
+> the paths below accordingly.
+
 ## migrate_historical.py
 
 Re-processes legacy Excel calibration batches through the live calibration engine

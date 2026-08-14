@@ -57,6 +57,25 @@ This matters because a container can be "healthy" and running clean code for
 happened — see Incident History below) — and the reverse is also true: fixing
 the git tree does **nothing** for a running container until you rebuild.
 
+## Auto-deploy on push (currently dormant — read before re-enabling)
+
+`.github/workflows/deploy.yml` runs `deploy-package/deploy.ps1` on a
+**self-hosted runner** on every push to `main`. That script does
+`git pull` in `C:\Calibration` and then `docker compose up -d` — i.e. **any
+push to main force-syncs this machine's working tree and restarts the stack.**
+
+As of 2026-08-14 no runner is installed on this machine, so the workflow's
+jobs simply queue on GitHub and nothing happens locally. Two warnings if you
+ever reinstall a runner:
+
+1. A `git pull` was exactly what detonated the July merge corruption (see
+   Incident History). Auto-sync of a production working tree is only safe if
+   `main` is protected and reviewed.
+2. `deploy.ps1` runs `docker compose up -d --build` against
+   `deploy-package/docker-compose.yml`, which uses `image:` (pre-baked), not
+   `build:` — so a code push does **not** actually rebuild images. Rebuilding
+   remains a manual step (see above).
+
 ## Debugging a failed run — where to actually look
 
 1. **Container health / crash**: `docker ps`, `docker logs <container>`.
