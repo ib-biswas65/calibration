@@ -103,6 +103,21 @@ the git tree does **nothing** for a running container until you rebuild.
   `ValueError: Could not detect CSV format`. Fixed by relaxing the regex/parse
   formats in `apps/api/ite_api/calibration/ref_loader.py`.
 
+- **2026-08-14: rebuilding the image from the restored git tree regressed the
+  API by a month.** The production image had been built on 2026-07-09 from the
+  Windows working tree, which contained a month of code (tz-aware setpoint
+  handling in `matcher.py`, audit-log user attribution, the date-edit and
+  deviation-correction endpoints, traceback persistence in `failure_reason`,
+  and `ite_api/calibration/template.docx`) that was **never committed to git**
+  — git's last good commit was 2026-06-09. Rebuilding from the restored tree
+  therefore shipped June code, and the first test run failed on the
+  tz-naive/tz-aware comparison bug that the July image had already fixed.
+  Recovered by extracting `/app/ite_api` from the backed-up July image
+  (`docker cp` from a container of `ite-calibration-api:pre-ref-loader-fix`),
+  diffing against the repo, and committing the July code. **Before rebuilding
+  a production image, always diff the running image's source against the repo**
+  — never assume git matches what's deployed.
+
 **Lesson**: when "the app is broken," check in this order: (1) is the failure
 actually in the currently-running container (check `edge` logs + Postgres
 `calibration_runs.failure_reason`), not a guess based on the git working tree;

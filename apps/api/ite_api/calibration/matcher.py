@@ -20,6 +20,11 @@ TOLERANCE = 0.5
 
 
 def _window(df: pd.DataFrame, start: datetime, end: datetime) -> pd.DataFrame:
+    # df.timestamp is tz-naive; strip timezone from bounds if present
+    if start.tzinfo is not None:
+        start = start.replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.replace(tzinfo=None)
     mask = (df.timestamp >= start) & (df.timestamp <= end)
     return df.loc[mask].copy()
 

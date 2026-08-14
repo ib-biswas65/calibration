@@ -569,9 +569,76 @@ def get_audit(
 ):
     _get_run_or_404(run_id, db)
     entries = db.scalars(
-        select(AuditLog).where(AuditLog.run_id == run_id).order_by(AuditLog.at)
+        select(AuditLog).where(AuditLog.run_id == run_id).order_by(AuditLog.at.desc())
     ).all()
-    return [{"action": e.action, "at": e.at.isoformat(), "detail": e.detail} for e in entries]
+    user_cache: dict[uuid.UUID, User] = {}
+    result = []
+    for e in entries:
+        actor = None
+        if e.user_id:
+            if e.user_id not in user_cache:
+                user_cache[e.user_id] = db.get(User, e.user_id)
+            u = user_cache[e.user_id]
+            if u:
+                actor = {"id": str(u.id), "full_name": u.full_name, "email": u.email}
+        result.append({"action": e.action, "at": e.at.isoformat(), "detail": e.detail, "user": actor})
+    return result
+
+
+class PatchDatesRequest(BaseModel):
+    test_date_jp: str | None = None
+    doc_date_jp: str | None = None
+
+
+@router.patch("/{run_id}/dates", response_model=RunDetail)
+def patch_dates(
+    run_id: uuid.UUID,
+    body: PatchDatesRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+    user: User = require_role("engineer"),
+):
+    """Update test date and/or cert date on a completed run, then regenerate all certificates."""
+    run = _get_run_or_404(run_id, db)
+    if run.status != "complete":
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="only complete runs can have dates edited")
+    if not body.test_date_jp and not body.doc_date_jp:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no date provided")
+
+    changes: dict = {}
+    if body.test_date_jp and body.test_date_jp != run.test_date_jp:
+        changes["test_date_jp"] = {"old": run.test_date_jp, "new": body.test_date_jp}
+        run.test_date_jp = body.test_date_jp
+    if body.doc_date_jp and body.doc_date_jp != run.doc_date_jp:
+        changes["doc_date_jp"] = {"old": run.doc_date_jp, "new": body.doc_date_jp}
+        run.doc_date_jp = body.doc_date_jp
+
+    if not changes:
+        return _run_detail(run, db)
+
+    db.commit()
+    db.refresh(run)
+    write_audit(db, user_id=user.id, run_id=run.id, action="run.dates_edited", detail=changes)
+
+    settings = get_settings()
+    background_tasks.add_task(_regenerate_all_certificates, run.id, settings)
+    return _run_detail(run, db)
+
+
+def _regenerate_all_certificates(run_id: uuid.UUID, settings) -> None:
+    from ite_api.db.session import _SessionLocal
+    assert _SessionLocal is not None
+    with _SessionLocal() as db:
+        run = db.get(CalibrationRun, run_id)
+        if run is None:
+            return
+        results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run_id)).all()
+        for result in results:
+            try:
+                _regenerate_certificate(run, result, settings, db)
+            except Exception:
+                _log.exception("Failed to regenerate cert for result %s during date update", result.id)
+        db.commit()
 
 
 @router.get("/{run_id}/results.zip")
@@ -636,9 +703,13 @@ def _run_processing_task(
         try:
             _do_process(run, ref_paths, cal_path, settings, db)
         except Exception as exc:  # noqa: BLE001
+            import traceback
             _log.exception("Processing failed for run %s", run_id)
             run.status = "failed"
-            run.failure_reason = {"message": "Processing failed. Check server logs for details."}
+            run.failure_reason = {
+                "message": f"{type(exc).__name__}: {exc}",
+                "traceback": traceback.format_exc(),
+            }
             db.commit()
 
 
@@ -724,6 +795,7 @@ def _do_process(
 
     run.status = "complete"
     run.completed_at = datetime.now(UTC)
+    run.failure_reason = None
     db.commit()
 
 
@@ -737,6 +809,140 @@ def _default_template() -> Path:
 
 
 # ── Detail builder ────────────────────────────────────────────────────────
+
+# ── Manual deviation correction ───────────────────────────────────────────
+
+class DeviationCorrection(BaseModel):
+    setpoint_index: int
+    new_deviation: float
+
+
+@router.patch("/{run_id}/results/{result_id}", status_code=status.HTTP_200_OK)
+def correct_deviation(
+    run_id: uuid.UUID,
+    result_id: uuid.UUID,
+    body: DeviationCorrection,
+    db: Session = Depends(get_session),
+    user: User = require_role("engineer"),
+):
+    run = _get_run_or_404(run_id, db)
+    result = db.get(LoggerResult, result_id)
+    if result is None or result.run_id != run_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="result not found")
+
+    per_sp = list(result.per_setpoint)
+    if body.setpoint_index < 0 or body.setpoint_index >= len(per_sp):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid setpoint_index")
+
+    sp = dict(per_sp[body.setpoint_index])
+    ref_c = sp.get("ref_c")
+    if ref_c is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no reference value for this setpoint")
+
+    new_dev = round(abs(body.new_deviation), 3)
+    # Preserve sign direction of original deviation; default to ref - cal convention
+    original_dev = sp.get("dev_c")
+    if original_dev is not None and sp.get("cal_c") is not None and sp.get("ref_c") is not None:
+        sign = 1 if sp["cal_c"] <= sp["ref_c"] else -1
+    else:
+        sign = 1
+    new_cal_c = round(ref_c - sign * new_dev, 3)
+
+    threshold = float(run.threshold_c)
+    if "original_dev_c" not in sp:
+        sp["original_dev_c"] = sp.get("dev_c")
+    sp["dev_c"] = new_dev
+    sp["cal_c"] = new_cal_c
+    sp["within_tol"] = new_dev <= threshold
+    sp["manually_corrected"] = True
+    per_sp[body.setpoint_index] = sp
+
+    devs = [s["dev_c"] for s in per_sp if s.get("dev_c") is not None]
+    new_max = max(devs) if devs else None
+    new_verdict = "pass" if (new_max is not None and new_max <= threshold) else "fail"
+
+    result.per_setpoint = per_sp
+    result.max_deviation_c = new_max
+    result.verdict = new_verdict
+
+    # Patch the Word certificate
+    settings = get_settings()
+    cert_path = Path(result.cert_path) if result.cert_path else None
+    if cert_path and cert_path.exists():
+        try:
+            from docx import Document
+            from ite_api.calibration.docx_filler import fill_results_table
+            doc = Document(str(cert_path))
+            ordered = [(s.get("ref_c"), s.get("cal_c")) for s in per_sp]
+            fill_results_table(doc, ordered)
+            doc.save(str(cert_path))
+        except Exception:
+            _log.exception("Patching docx failed for result %s — regenerating", result_id)
+            _regenerate_certificate(run, result, settings, db)
+    else:
+        _regenerate_certificate(run, result, settings, db)
+
+    write_audit(db, user_id=user.id, run_id=run_id, action="result.deviation_corrected", detail={
+        "result_id": str(result_id),
+        "sheet_name": result.sheet_name,
+        "setpoint_index": body.setpoint_index,
+        "target_c": sp.get("target_c"),
+        "old_dev_c": sp.get("dev_c"),
+        "new_dev_c": new_dev,
+        "new_verdict": new_verdict,
+    })
+    db.commit()
+    return {
+        "id": str(result.id),
+        "sheet_name": result.sheet_name,
+        "verdict": result.verdict,
+        "max_deviation_c": float(result.max_deviation_c) if result.max_deviation_c is not None else None,
+        "cert_no": result.cert_no,
+        "per_setpoint": result.per_setpoint,
+    }
+
+
+
+def _regenerate_certificate(
+    run: CalibrationRun,
+    result: LoggerResult,
+    settings,
+    db: Session,
+) -> None:
+    from ite_api.calibration.engine import RunConfig, SetpointWindow, run_one_logger
+    from ite_api.calibration.cal_loader import load_workbook
+    from ite_api.calibration.ref_loader import combine_refs, load_ref_auto
+
+    ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
+    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)).first()
+    if not ref_files or cal_file is None:
+        raise RuntimeError("Cannot regenerate: missing uploaded files")
+
+    ref_df = combine_refs([load_ref_auto(Path(f.stored_path)) for f in ref_files])
+    wb, _ = load_workbook(Path(cal_file.stored_path))
+
+    template_path = Path(run.template_path) if run.template_path else _default_template()
+    setpoints = [
+        SetpointWindow(
+            target=sp["target_c"],
+            start=datetime.fromisoformat(sp["start_at"]) if isinstance(sp["start_at"], str) else sp["start_at"],
+            end=datetime.fromisoformat(sp["end_at"]) if isinstance(sp["end_at"], str) else sp["end_at"],
+        )
+        for sp in run.setpoints
+    ]
+
+    run_cfg = RunConfig(
+        cert_no=result.cert_no or "",
+        serial=result.sheet_name.strip(),
+        test_date_jp=run.test_date_jp,
+        doc_date_jp=run.doc_date_jp,
+        template_path=template_path,
+        output_dir=settings.data_dir / "runs" / str(run.id) / "certificates",
+        setpoints=setpoints,
+    )
+    out_path = run_one_logger(run_cfg, sheet_name=result.sheet_name, wb=wb, ref_df=ref_df)
+    result.cert_path = str(out_path)
+
 
 def _run_detail(run: CalibrationRun, db: Session) -> RunDetail:
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
