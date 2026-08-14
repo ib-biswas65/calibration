@@ -6,10 +6,12 @@ This repo is a monorepo:
 
 - `apps/api/` — FastAPI service (Python 3.12)
 - `apps/web/` — Vite + React + TypeScript SPA
-- `infra/`   — Docker Compose stack (edge nginx + api + web + postgres)
+- `infra/`   — Docker Compose stack for local dev (edge nginx + api + web + postgres)
+- `deploy-package/` — what actually ships to the production Windows PC (see `docs/DEPLOYMENT.md`)
 - `docs/superpowers/` — design specs and implementation plans
+- `docs/DEPLOYMENT.md` — **read this before debugging a production issue.** Covers how the Windows deployment actually runs, and why editing source code doesn't affect a running container until you rebuild the image.
 
-The legacy Flet desktop prototype lives in `src/` and `Old Method/` and is **not** part of the build.
+There is no desktop app. An earlier Flet-based prototype (`src/`) was removed 2026-08-14 — it was superseded by the web dashboard and had gone stale.
 
 ## What works now (Slices 1–6 complete)
 

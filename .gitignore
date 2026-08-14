@@ -74,5 +74,8 @@ deploy-package/seed/db_full.sql
 # Volume snapshots (rollback insurance, local only)
 .snapshot/
 
+# Generated calibration output (not source)
+output PDF/
+
 # Editor / OS
 .DS_Store

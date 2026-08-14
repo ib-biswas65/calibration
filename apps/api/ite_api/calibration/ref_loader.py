@@ -7,10 +7,15 @@ from pathlib import Path
 
 import pandas as pd
 
-_DT_FORMATS = ("%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_DT_FORMATS = (
+    "%Y/%m/%d %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y/%m/%d %H:%M",
+    "%Y-%m-%d %H:%M",
+)
 
-_DATE_FIRST_RE = re.compile(r"^\d{4}[/-]\d{2}[/-]\d{2}")
-_DATE_SECOND_RE = re.compile(r"^[^,]+,\d{4}[/-]\d{2}[/-]\d{2}")
+_DATE_FIRST_RE = re.compile(r"^\d{4}[/-]\d{1,2}[/-]\d{1,2}")
+_DATE_SECOND_RE = re.compile(r"^[^,]+,\d{4}[/-]\d{1,2}[/-]\d{1,2}")
 
 
 def _try_open(path: Path):

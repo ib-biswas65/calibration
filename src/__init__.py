@@ -1,1 +1,0 @@
-# Calibration Pro Desktop Application
