@@ -1,0 +1,22 @@
+.pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: var(--radius-badge);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--color-light-cool-gray);
+  color: var(--color-boardroom-navy);
+}
+
+.draft      { background: var(--color-light-cool-gray); color: var(--c-text-mute); }
+.processing { background: var(--c-accent-100);          color: var(--color-brand-electric); }
+.complete   { background: #d1fae5;                       color: #065f46; }
+.failed     { background: #fee2e2;                       color: var(--c-fail); }
+.pass       { background: #d1fae5;                       color: #065f46; }
+.fail       { background: #fee2e2;                       color: var(--c-fail); }
+.adjusted   { background: #fef3c7;                       color: #92400e; }
+
+.pulsing {
+  animation: processingPulse 1.8s ease-in-out infinite;
+}

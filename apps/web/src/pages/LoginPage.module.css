@@ -1,0 +1,160 @@
+.wrap {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: var(--c-bg);
+  padding: var(--s-5);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-8) var(--s-6);
+  animation: scaleIn 400ms var(--ease-out) both;
+}
+
+.cardLeaving {
+  animation: cardExit 320ms var(--ease-in-out) forwards !important;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
+  margin: 0 0 var(--s-2);
+  display: inline-block;
+  transform-origin: top left;
+}
+
+.titleLeaving {
+  animation: heroExit 300ms var(--ease-in-out) forwards !important;
+}
+
+.subtitle {
+  margin: 0 0 var(--s-6);
+  color: var(--c-text-mute);
+  font-size: 14px;
+  animation: fadeIn 300ms 80ms var(--ease-out) both;
+}
+
+.field {
+  display: block;
+  margin-bottom: var(--s-5);
+  animation: staggerIn 350ms var(--ease-out) both;
+}
+.field:nth-of-type(1) { animation-delay: 60ms; }
+.field:nth-of-type(2) { animation-delay: 120ms; }
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text-soft);
+  margin-bottom: var(--s-1);
+}
+.input {
+  width: 100%;
+  padding: 11px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 15px;
+  background: transparent;
+  color: var(--c-text);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.input:focus { border-bottom-color: var(--color-brand-electric); }
+
+/* ── Button / spinner crossfade ───────────────────────────────────── */
+.btnWrap {
+  position: relative;
+  height: 50px; /* matches button height */
+  animation: staggerIn 350ms 180ms var(--ease-out) both;
+}
+
+.button {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: var(--color-brand-electric);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity 300ms var(--ease-out);
+}
+.button:hover:not(:disabled) { background: var(--c-accent-700); }
+.buttonLoading { opacity: 0; pointer-events: none; }
+
+.spinnerOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  color: var(--c-text-mute);
+  font-size: 14px;
+  animation: fadeIn 300ms var(--ease-out) both;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--color-brand-electric);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error — shakes on each new message via re-mount (key prop) ───── */
+.error {
+  color: var(--c-fail);
+  font-size: 13px;
+  margin-bottom: var(--s-3);
+  animation: shakeX 400ms var(--ease-out) both;
+}
+
+/* ── Password toggle ──────────────────────────────────────────────── */
+.passWrap { position: relative; }
+.passWrap .input { padding-right: 36px; }
+.passToggle {
+  position: absolute;
+  right: 0;
+  bottom: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c-text-mute);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color var(--transition-fast);
+}
+.passToggle:hover { color: var(--c-text); }
+
+/* ── Required indicator ──────────────────────────────────────────── */
+.required { color: var(--c-fail); margin-left: 2px; }
+
+/* ── Forgot password link ─────────────────────────────────────────── */
+.forgotLink {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-brand-electric);
+  margin-top: calc(-1 * var(--s-3));
+  margin-bottom: var(--s-4);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+.forgotLink:hover { opacity: 0.7; }

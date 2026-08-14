@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(wsl --update)",
+      "PowerShell($admin = \\([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent\\(\\)\\).IsInRole\\([Security.Principal.WindowsBuiltinRole]::Administrator\\); Write-Output \"IsAdmin: $admin\"; Write-Output \"----- Features -----\"; Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux, VirtualMachinePlatform | Select-Object FeatureName, State | Format-Table -AutoSize)",
+      "PowerShell(Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-Command','wsl --install --no-distribution; Write-Host \\\\\"Done. You may need to reboot.\\\\\"; pause')",
+      "PowerShell(docker logs ite-calibration-api-1 > \"C:\\\\Calibration\\\\api-logs.txt\" 2>&1; Get-Content \"C:\\\\Calibration\\\\api-logs.txt\" | Select-Object -First 100)",
+      "PowerShell(docker exec ite-calibration-api-1 sh -c \"cd /app && python -c 'import main' 2>&1; echo exitcode:$?\")",
+      "Bash(ls \"/c/Users/info_ithrue.com/Documents/ITE\" 2>&1 | head -50)",
+      "PowerShell(Get-CimInstance Win32_Processor)",
+      "PowerShell(Get-CimInstance Win32_ComputerSystem)",
+      "PowerShell(Get-CimInstance Win32_VideoController)",
+      "PowerShell(Get-CimInstance Win32_OperatingSystem)",
+      "PowerShell(Get-CimInstance Win32_DiskDrive)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match \"FreeCAD|freecad\" } | Select-Object ProcessName, Id, CPU, WorkingSet, Responding, StartTime | Format-Table -AutoSize)",
+      "PowerShell(Stop-Process -Id 13680 -Force)",
+      "PowerShell(Get-Process -Id 13680 -ErrorAction SilentlyContinue)",
+      "Bash(git ls-tree *)"
+    ]
+  }
+}

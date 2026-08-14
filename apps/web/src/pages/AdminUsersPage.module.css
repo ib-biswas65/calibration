@@ -1,0 +1,259 @@
+.page { padding: var(--s-6); width: 100%; display: flex; flex-direction: column; gap: var(--s-5); }
+
+.header { display: flex; align-items: center; justify-content: space-between; }
+
+.heading {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
+}
+
+.btnPrimary {
+  background: var(--color-brand-electric);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 10px var(--s-5);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnPrimary:hover { background: var(--c-accent-700); }
+
+/* ── Invite form ─────────────────────────────────────────────────── */
+.inviteForm {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 480px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text-soft);
+}
+
+.field input {
+  padding: 9px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  background: transparent;
+  color: var(--c-text);
+  outline: none;
+}
+.field input:focus { border-bottom-color: var(--color-brand-electric); }
+
+.field select {
+  padding: 9px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  background: transparent;
+  color: var(--c-text);
+  outline: none;
+}
+
+/* ── Setup URL box ────────────────────────────────────────────────── */
+.setupUrl {
+  background: var(--c-accent-50);
+  border: 1px solid var(--c-accent-100);
+  border-radius: var(--radius-card);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: 13px;
+}
+.setupUrlRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.setupUrlCode {
+  font-family: var(--font-mono);
+  word-break: break-all;
+  color: var(--color-brand-electric);
+  flex: 1;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.copyBtn:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
+
+.required { color: var(--c-fail); }
+
+/* ── Users table ─────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  font-size: 14px;
+}
+.table th {
+  text-align: left;
+  padding: var(--s-3) var(--s-4);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-mute);
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-bg);
+}
+.table td { padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-border); color: var(--c-text); }
+.table tbody tr:last-child td { border-bottom: none; }
+.disabled td { color: var(--c-text-mute); }
+
+.roleSelect {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-badge);
+  padding: 3px var(--s-2);
+  font-size: 13px;
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.toggleBtn {
+  background: none;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  padding: 3px var(--s-3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--c-text-soft);
+  transition: border-color 0.12s, color 0.12s;
+}
+.toggleBtn:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
+
+.resendBtn {
+  background: none;
+  border: 1px solid var(--c-accent-200);
+  border-radius: var(--radius-pill);
+  padding: 3px var(--s-3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-brand-electric);
+  transition: background 0.12s, border-color 0.12s;
+}
+.resendBtn:hover { background: var(--c-accent-50); border-color: var(--color-brand-electric); }
+
+.actions { display: flex; gap: var(--s-2); align-items: center; }
+
+/* ── Status badges ───────────────────────────────────────────────── */
+.statusActive {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-pass);
+}
+.statusPending {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-warn, #b45309);
+}
+.statusDisabled {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+}
+
+/* ── Setup URL note ──────────────────────────────────────────────── */
+.setupUrlNote {
+  font-size: 12px;
+  color: var(--c-text-soft);
+  margin: 0;
+}
+
+/* ── Pending approvals section ───────────────────────────────────── */
+.pendingSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  background: var(--c-surface);
+  border: 1.5px solid var(--c-warn, #d97706);
+  border-radius: var(--radius-card);
+  padding: var(--s-4);
+}
+
+.pendingHeading {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-warn, #b45309);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.pendingBadge {
+  background: var(--c-warn, #d97706);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 1px 7px;
+  line-height: 1.6;
+}
+
+.approveBtn {
+  background: var(--c-pass, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.approveBtn:hover:not(:disabled) { opacity: 0.85; }
+.approveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rejectBtn {
+  background: none;
+  border: 1px solid var(--c-fail, #dc2626);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--c-fail, #dc2626);
+  transition: background 0.12s;
+}
+.rejectBtn:hover:not(:disabled) { background: #fef2f2; }
+.rejectBtn:disabled { opacity: 0.5; cursor: not-allowed; }

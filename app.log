@@ -1,0 +1,5 @@
+/Users/subhanshubiswas/Projects/Calibration/src/main.py:91: DeprecationWarning: app() is deprecated since version 0.80.0. Use run() instead.
+  ft.app(target=main)
+/Users/subhanshubiswas/Projects/Calibration/src/main.py:47: RuntimeWarning: coroutine 'Window.center' was never awaited
+  page.window.center()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback

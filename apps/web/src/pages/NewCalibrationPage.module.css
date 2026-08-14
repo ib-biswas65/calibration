@@ -1,0 +1,277 @@
+.page { padding: var(--s-6); width: 100%; animation: fadeSlideUp 400ms var(--ease-out) both; }
+
+.heading {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--color-boardroom-navy);
+  margin: 0 0 var(--s-5);
+}
+
+/* ── Progress steps ──────────────────────────────────────────────── */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: var(--s-6);
+  overflow: hidden;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+}
+
+.stepNum {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c-border);
+  color: var(--c-text-mute);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.stepLabel {
+  color: var(--c-text-mute);
+  transition: color var(--transition-base);
+}
+
+.step.stepActive .stepNum {
+  background: var(--color-brand-electric);
+  color: #fff;
+}
+.step.stepActive .stepLabel { color: var(--color-brand-electric); font-weight: 600; }
+
+.step.stepDone .stepNum {
+  background: var(--c-pass);
+  color: #fff;
+}
+.step.stepDone .stepLabel { color: var(--c-pass); }
+
+.stepConnector {
+  flex: 1;
+  height: 1px;
+  background: var(--c-border);
+  min-width: var(--s-4);
+  margin: 0 var(--s-2);
+}
+
+/* ── Two-column layout ───────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--s-6);
+  align-items: start;
+}
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+.form, .files { display: flex; flex-direction: column; gap: var(--s-6); }
+
+/* ── Info sidebar ────────────────────────────────────────────────── */
+.infoPanel {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  position: sticky;
+  top: var(--s-4);
+}
+
+.infoPanelTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-mute);
+}
+
+.infoStep {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+}
+
+.infoStepNum {
+  width: 22px;
+  height: 22px;
+  background: var(--color-brand-electric);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.infoStepBody { display: flex; flex-direction: column; gap: 2px; }
+.infoStepLabel { font-size: 13px; font-weight: 600; color: var(--c-text); }
+.infoStepDesc { font-size: 12px; color: var(--c-text-mute); line-height: 1.5; }
+
+.infoDivider { border: none; border-top: 1px solid var(--c-border); margin: 0; }
+
+.infoNote {
+  font-size: 12px;
+  color: var(--c-text-mute);
+  line-height: 1.5;
+  background: var(--c-bg);
+  border-radius: var(--radius-md);
+  padding: var(--s-3);
+}
+.infoNoteLabel { font-weight: 600; color: var(--c-text-soft); display: block; margin-bottom: 4px; }
+
+/* ── Form sections ───────────────────────────────────────────────── */
+.section { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-text-mute);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.fieldGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-5) var(--s-4); }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text-soft);
+}
+
+.field input {
+  padding: 9px 0;
+  border: none;
+  border-bottom: 1.5px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  background: transparent;
+  color: var(--c-text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus { border-bottom-color: var(--color-brand-electric); }
+
+.setpoints {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: 0 var(--s-4);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btnPrimary {
+  align-self: flex-start;
+  background: var(--color-brand-electric);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px var(--s-6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btnPrimary:hover { background: var(--c-accent-700); }
+.btnPrimary:disabled { opacity: .45; cursor: default; }
+
+.btnSecondary {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  padding: 12px var(--s-6);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--c-text);
+  transition: border-color 0.15s;
+}
+.btnSecondary:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
+
+/* ── File items ──────────────────────────────────────────────────── */
+.fileList {
+  list-style: none;
+  padding: 0;
+  margin: var(--s-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.fileList li {
+  font-size: 13px;
+  color: var(--color-brand-electric);
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.fileList li::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-brand-electric);
+  flex-shrink: 0;
+}
+
+.calInfo { font-size: 14px; color: var(--c-text); margin-top: var(--s-2); }
+
+/* ── Info panel step stagger ─────────────────────────────────────── */
+.infoStep { animation: staggerIn 350ms var(--ease-out) both; }
+.infoPanel .infoStep:nth-child(2) { animation-delay:  60ms; }
+.infoPanel .infoStep:nth-child(3) { animation-delay: 120ms; }
+.infoPanel .infoStep:nth-child(4) { animation-delay: 180ms; }
+.infoPanel .infoStep:nth-child(5) { animation-delay: 240ms; }
+
+/* ── Processing crossfade ─────────────────────────────────────────── */
+/* Wrap the button and progress indicator so they crossfade in place */
+.processWrap { position: relative; }
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--c-text-mute);
+  font-size: 14px;
+  animation: fadeIn 300ms var(--ease-out) both;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--color-brand-electric);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Done state ──────────────────────────────────────────────────── */
+.done { text-align: center; padding: var(--s-8); }
+.done h2 { color: var(--color-boardroom-navy); font-family: var(--font-heading); font-weight: 500; font-size: 24px; }
+
+.doneActions { display: flex; gap: var(--s-3); justify-content: center; margin-top: var(--s-5); }

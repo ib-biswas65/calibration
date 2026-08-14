@@ -1,0 +1,66 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: var(--s-5);
+  animation: fadeIn 150ms var(--ease-out) both;
+}
+
+.dialog {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-card);
+  padding: var(--s-6);
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-2);
+  animation: scaleIn 200ms var(--ease-out) both;
+}
+
+.title {
+  margin: 0 0 var(--s-2);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-boardroom-navy);
+}
+
+.message {
+  margin: 0 0 var(--s-5);
+  font-size: 14px;
+  color: var(--c-text-mute);
+  line-height: 1.5;
+}
+
+.actions { display: flex; gap: var(--s-3); justify-content: flex-end; }
+
+.cancel {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  padding: 9px var(--s-5);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-mute);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.cancel:hover { border-color: var(--c-text-mute); color: var(--c-text); }
+
+.confirm {
+  background: var(--color-brand-electric);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 9px var(--s-5);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.confirm:hover { background: var(--c-accent-700); }
+
+.destructive { background: var(--c-fail); }
+.destructive:hover { background: #b91c1c; }
