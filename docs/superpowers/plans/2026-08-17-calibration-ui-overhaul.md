@@ -9,21 +9,40 @@ involved.
 
 **Development target:** all work is done on a **Windows machine** (Docker Desktop +
 PowerShell). See [Windows-specific notes](#windows-specific-notes) — one item (PDF
-export) has a real Windows/Docker constraint that needs a decision before it can be built.
+export) has a real Windows/Docker constraint, resolved by decision 2 below.
+
+**Open questions:** none blocking. The five decisions below are settled; the only
+remaining unknown is whether LibreOffice reproduces the Japanese certificate faithfully,
+which the first task of §3e answers empirically.
 
 ---
 
 ## Contents
 
 1. [Overview page — UI overhaul](#1-overview-page--ui-overhaul)
-2. [Calibrations page — delete a run](#2-calibrations-page--delete-a-run)
+2. [Calibrations page — archive a run](#2-calibrations-page--archive-a-run)
 3. [New Calibration page — dates, draft persistence, cert numbers, PDF export](#3-new-calibration-page)
 4. [Upcoming page — fix the due-date logic](#4-upcoming-page--fix-the-due-date-logic)
 5. [Loggers page — completeness, freshness, sorting](#5-loggers-page--completeness-freshness-sorting)
-6. [Cross-cutting: the logger scheduling model](#cross-cutting-the-logger-scheduling-model)
-7. [Suggested build order](#suggested-build-order)
-8. [Windows-specific notes](#windows-specific-notes)
-9. [Open decisions for the user](#open-decisions-for-the-user)
+6. [Admin audit trail](#6-admin-audit-trail)
+7. [Cross-cutting: the logger scheduling model](#7-cross-cutting-the-logger-scheduling-model)
+8. [Suggested build order](#suggested-build-order)
+9. [Windows-specific notes](#windows-specific-notes)
+
+Settled scope questions are recorded in
+[Decisions taken](#decisions-taken-2026-08-17), immediately below.
+
+---
+
+## Decisions taken (2026-08-17)
+
+| # | Decision | Effect on this plan |
+|---|---|---|
+| 1 | Overview may make the one-line API change | "Recent runs" always shows the five most recent runs — option (b) in §1 |
+| 2 | LibreOffice approved for PDF, to be tested | §3e proceeds; the fidelity spike is the first task, not a gate to re-decide scope |
+| 3 | 12 months for **every** logger, measured from the last test date | No per-logger interval column; simplifies §7 |
+| 4 | **Soft delete / archive**, not hard delete | §2 rewritten; certificates and cert-number lookups survive |
+| 5 | Admin audit page is in scope | New §6 |
 
 ---
 
@@ -85,76 +104,102 @@ the composition:
 - [ ] **Responsive pass** — tiles wrap to 2×2 and rails stack on narrow windows; the
       lab PC runs a single browser window that is often not maximised.
 
-### Note on "UI-only"
+### The one API change (approved)
 
-Everything above is achievable without touching the API **except** the 30-day cutoff on
-`recent_runs`. Making "Recent runs" honest needs a one-line change in `overview.py`
-(drop the `created_at >= cutoff_30d` filter for the recent-runs query only, keeping it
-for the 30-day stats). Two options:
+Everything above is UI-only except the 30-day cutoff on `recent_runs`.
 
-- **(a)** Strictly UI-only: keep the cutoff, and change the empty-state copy to
-  "No runs in the last 30 days" with a link to full history. Honest, zero backend risk.
-- **(b)** One-line API change so the rail always shows the five most recent runs.
-
-Recommendation: **(b)** — it is a smaller change than the copy workaround and gives the
-right answer. Flagged here because it crosses the stated UI-only boundary.
+- [ ] In `overview.py`, split the query: keep `created_at >= cutoff_30d` for the
+      30-day statistics, and run a second unfiltered `ORDER BY created_at DESC LIMIT 5`
+      for the recent-runs rail. The rail then always shows the five most recent runs
+      regardless of age.
+- [ ] Exclude archived runs from both queries (see §2).
 
 ---
 
-## 2. Calibrations page — delete a run
+## 2. Calibrations page — archive a run
 
 **Files:** `apps/web/src/pages/HistoryPage.tsx`, `HistoryPage.module.css`,
-`components/ConfirmDialog.tsx`; backend `apps/api/ite_api/routes/runs.py`.
+`components/ConfirmDialog.tsx`; backend `apps/api/ite_api/routes/runs.py`,
+`db/models/calibration.py`, new migration.
 
-### What's already done
+**Decision 4: soft delete / archive.** A run is hidden from the working views but its
+rows, its certificate files and its certificate numbers all survive. This is the right
+call for issued certificates — a customer holding cert `0000001645` can still be
+answered years later — and it makes the delete button far less dangerous.
 
-The backend endpoint **exists and already meets both requirements**:
-`DELETE /api/runs/{run_id}` (`runs.py:317`) is gated by `require_role("admin")`, writes
-an audit row (`action="run.deleted"`), deletes the DB rows by cascade, and removes the
-reference CSVs, workbook, certificates and the run directory from the data volume.
+### What exists today
 
-So this item is mostly frontend, plus four small backend hardening fixes.
+`DELETE /api/runs/{run_id}` (`runs.py:317`) is already admin-gated and already writes an
+audit row. But it is a **hard** delete: it cascades the DB rows away and `unlink`s the
+reference CSVs, workbook, certificates and the whole run directory. That behaviour is
+now wrong and must be replaced, not extended.
+
+### Schema
+
+- [ ] Alembic `0008`: add to `calibration_runs` — `archived_at TIMESTAMPTZ NULL`,
+      `archived_by UUID NULL REFERENCES users(id) ON DELETE SET NULL`,
+      `archive_reason TEXT NULL`. Index `archived_at` (every list query filters on it).
+
+### API
+
+- [ ] **Repurpose `DELETE /api/runs/{run_id}` to archive** (admin only): set
+      `archived_at` / `archived_by`, write audit `run.archived` with
+      `detail={batch_name, status, logger_count, cert_no_range, reason}`, return `204`.
+      No files are touched. Keeping the same verb means no caller can accidentally still
+      be hitting a hard delete.
+- [ ] **`POST /api/runs/{run_id}/restore`** (admin only) → clears the archive columns,
+      audit `run.restored`.
+- [ ] **Block archiving a `processing` run** → `409`. The generation background task
+      holds the run in a second session and would keep writing results into a run the
+      operator believes is gone.
+- [ ] **Filter archived runs out of the working views by default:** `list_runs`,
+      `GET /api/overview` (both stat and rail queries), and the pass-rate/deviation
+      aggregates. Add `include_archived=true` and a `status=archived` filter for admins.
+- [ ] **Keep them reachable where it matters:** `GET /api/runs/{id}` and
+      `GET /api/runs/by-cert-no/{cert_no}` still resolve archived runs, with
+      `archived_at` in the response so the UI can label them. This is the whole point of
+      the decision.
+- [ ] **Certificate numbers stay reserved.** The uniqueness index from §3d covers
+      archived runs too, so an archived run's numbers can never be reissued — archiving
+      cannot create a duplicate-certificate incident.
+- [ ] **Block mutations on an archived run** → `409` on `/dates`, `/process`,
+      `/references`, `/calibration`, and deviation correction. Restore first.
+- [ ] **Recompute logger due dates** on archive and on restore — see
+      [§7](#7-cross-cutting-the-logger-scheduling-model). Archiving a logger's most recent
+      run must roll its due date back to the previous one.
+- [ ] **Hard purge is CLI-only.** Keep the existing file-cleanup code, moved behind an
+      `ite-api purge-run <id>` command with an explicit confirmation flag, for the rare
+      genuine deletion (test data, GDPR-style request). It is never reachable from the
+      UI.
 
 ### Frontend
 
-- [ ] Add a trailing actions column to the history table with a delete (trash) button,
-      rendered only when `useAuth().user?.role === "admin"`.
+- [ ] Trailing actions column in the history table with an **Archive** button (not
+      "Delete" — the label should match what happens), rendered only when
+      `useAuth().user?.role === "admin"`.
 - [ ] `e.stopPropagation()` on the button — the whole row is a navigation target
       (`HistoryPage.tsx:189`), so without it the click also opens the run.
-- [ ] Confirmation via the existing `ConfirmDialog`, requiring the batch name to be
-      typed to confirm. Deletion destroys issued certificates; a one-click
-      "Are you sure?" is not enough friction for that.
-- [ ] `useMutation` → invalidate `["runs"]` and `["overview"]`, success/failure toast,
-      and explicit handling of `403` ("admin role required") and `409` (see below).
-- [ ] Disable the button while `status === "processing"`.
-
-### Backend hardening
-
-- [ ] **Block deleting a run that is `processing`** → `409`. The generation background
-      task holds the run in another session; deleting mid-flight lets the task write
-      results back and re-create certificate files under a directory that was just
-      removed.
-- [ ] **Record what was deleted.** `write_audit(...)` at `runs.py:330` passes no
-      `detail`. After the cascade the run row is gone, so the audit entry as written
-      cannot answer "what was deleted?". Add `detail={batch_name, status,
-      certificate_date, logger_count, cert_no_range, file_count}`.
-- [ ] **Make the record reachable.** `audit_log.run_id` is deliberately *not* a foreign
-      key (`db/models/audit_log.py:21`), so the row survives the delete — good. But the
-      only way to read audit rows is `GET /api/runs/{run_id}/audit`, which 404s once the
-      run is gone. The deletion log is therefore currently write-only. Add
-      `GET /api/audit` (admin, paginated, filterable by action/user/date) and a small
-      admin-only audit view, or at minimum surface `run.deleted` entries there. Without
-      this, "logged properly" is only half true.
-- [ ] **Recompute logger due dates after deletion** — see
-      [cross-cutting](#cross-cutting-the-logger-scheduling-model). If the deleted run
-      was a logger's most recent calibration, its due date must roll back.
+- [ ] Confirmation via the existing `ConfirmDialog`: type the batch name, optional
+      reason field, and copy that states plainly that certificates remain retrievable.
+- [ ] `useMutation` → invalidate `["runs"]` and `["overview"]`, toast on success and
+      failure, explicit handling of `403` and `409`.
+- [ ] Disable while `status === "processing"`.
+- [ ] **Archived view:** a status-filter option "Archived" (admin only) listing archived
+      runs with who archived them, when, and why, each with a **Restore** action.
+- [ ] `RunDetailPage` gets an archived banner and hides/disables the edit affordances
+      (date edit, deviation correction, reprocess) when `archived_at` is set.
+- [ ] `CertificatePage` labels a hit belonging to an archived run rather than silently
+      returning it.
 
 ### Tests
 
-- [ ] API: admin deletes → 204 + audit row with detail; engineer → 403; processing run
-      → 409; files removed from disk.
-- [ ] E2E (`apps/web/e2e/history.spec.ts`): button hidden for non-admin, visible and
-      functional for admin.
+- [ ] API: admin archives → `204`, run absent from the default list, still resolvable by
+      cert number, files still on disk; engineer → `403`; processing run → `409`;
+      restore round-trips; archived run rejects date edits.
+- [ ] Due-date recompute: archiving the newest run rolls `next_due_at` back; restoring
+      rolls it forward.
+- [ ] E2E (`apps/web/e2e/history.spec.ts`): button hidden for non-admin; archive →
+      disappears from the list → visible under the Archived filter → restore.
 
 ---
 
@@ -262,21 +307,23 @@ Defence in depth, all three layers:
 **This is the one item with a real infrastructure constraint.** The API runs in a
 *Linux* container on the Windows PC (`deploy-package/docker-compose.yml`), so
 Windows-native conversion (`docx2pdf`, Word COM automation) is **not** available to it.
-Options:
+**Decision 2: LibreOffice, tested.** (For the record, the alternatives were a Word-COM
+helper service on the Windows host — needs a licensed Word and breaks the single-stack
+deployment — and browser-side conversion, which cannot hold fidelity on a template-driven
+Japanese document.)
 
-| Option | How | Cost / risk |
-|---|---|---|
-| **LibreOffice in the API image** (recommended) | `soffice --headless --convert-to pdf` invoked from the API | +400–600 MB image; needs `fonts-noto-cjk` or the Japanese certificate renders as tofu; deploy tarball grows accordingly; **fidelity of the JP template under LibreOffice must be verified before committing** |
-| Word COM on the Windows host | A small helper service outside Docker | Requires MS Word licensed on the lab PC; new out-of-container moving part; contradicts the current single-stack deployment |
-| Client-side conversion | JS docx→PDF in the browser | Poor fidelity on a template-driven JP document; not viable for a customer deliverable |
-
-Proposed (assuming LibreOffice):
-
-- [ ] Add LibreOffice + Noto CJK fonts to `apps/api/Dockerfile`; pin the package
-      versions and re-measure image size for the deploy tarball.
-- [ ] **Fidelity spike first** — convert one real certificate and compare against the
-      Word rendering (fonts, table borders, JP date line, page breaks). If it fails,
-      stop and re-decide; everything below depends on it.
+- [ ] **Fidelity spike, first task.** Add LibreOffice to a scratch image, convert a real
+      certificate, and compare against the Word rendering: fonts, table borders, the
+      Japanese date lines, page breaks, and the cert-number field. Record the comparison
+      (screenshots side by side) in the PR. Everything below depends on the result — if
+      the output is not customer-shippable, raise it before building the endpoints
+      rather than shipping a lossy PDF.
+- [ ] Add LibreOffice + `fonts-noto-cjk` to `apps/api/Dockerfile` — **the fonts are not
+      optional**; without them the Japanese text renders as tofu boxes. Pin package
+      versions and re-measure the image size for the deploy tarball.
+- [ ] Run `soffice --headless --convert-to pdf` in a private per-conversion profile
+      directory (`-env:UserInstallation=file:///tmp/...`); concurrent conversions sharing
+      one profile is the classic LibreOffice-in-a-server failure mode.
 - [ ] `GET …/certificate?format=docx|pdf` (default `docx`, so existing links keep
       working); convert on demand and cache the PDF next to the `.docx`, invalidated
       whenever the certificate is regenerated (`_regenerate_certificate`,
@@ -308,7 +355,7 @@ never written by any automated path in the system:**
 
 So the column is NULL fleet-wide and the page is permanently empty. This is not a UI
 bug — the scheduling data does not exist. It needs the model change described in
-[the cross-cutting section](#cross-cutting-the-logger-scheduling-model), which is the
+[the cross-cutting section](#7-cross-cutting-the-logger-scheduling-model), which is the
 prerequisite for this page.
 
 ### Once due dates exist
@@ -319,8 +366,8 @@ prerequisite for this page.
       (`loggers.py:38`), a larger fleet silently truncates.
 - [ ] Add a **"Never calibrated"** bucket — loggers with no completed result at all.
       They are the most overdue thing in the system and currently invisible.
-- [ ] Show per row: last calibrated date, the interval used, the source of the due date
-      (derived vs manually overridden), and last verdict.
+- [ ] Show per row: last calibrated date, the source of the due date (derived from
+      the 12-month interval vs manually overridden), and last verdict.
 - [ ] Fix the off-by-one in `daysUntil` (`UpcomingPage.tsx:9`): `new Date("2026-08-17")`
       parses as UTC midnight, then gets compared to a local `Date.now()`. Compare
       date-only values in local time.
@@ -384,28 +431,88 @@ keyed on the trimmed sheet name. Gaps to verify and close:
 
 ---
 
-## Cross-cutting: the logger scheduling model
+## 6. Admin audit trail
 
-Items 2 (delete), 4 (Upcoming) and 5 (Loggers) all depend on one piece of missing
+**Decision 5: in scope.** Without this the archive/restore log exists in the database
+but cannot be read from the application — `GET /api/runs/{run_id}/audit`
+(`runs.py:564`) is the only reader, it is scoped to a single run, and archived runs are
+filtered out of the lists that would lead you to it.
+
+`audit.py` already writes rows for `run.created`, `run.updated`, `run.renamed`,
+`run.deleted` (→ `run.archived`), `run.dates_edited`, `cert.downloaded`,
+`certs.zip_downloaded`, plus the auth and user-management actions. The data is there;
+nothing renders it.
+
+- [ ] **`GET /api/audit`** (admin only): paginated, newest first, filterable by
+      `action`, `user_id`, `run_id`, and date range; joins the actor's name/email and
+      the run's batch name where the run still exists. Reuse the actor-caching pattern
+      already in `get_audit` rather than N+1-ing the user lookup.
+- [ ] **Admin → Audit page** with a nav entry beside Users (`Sidebar.tsx` `NAV`,
+      `adminOnly: true`), a filter toolbar matching the History page's vocabulary, and
+      a CSV export.
+- [ ] Render `detail` readably per action type — the archive entry should read
+      "archived *April 2026 — Batch 1* (15 loggers, certs 0000001043–0000001057)",
+      not a raw JSON blob.
+- [ ] `audit_log.run_id` is deliberately **not** a foreign key
+      (`db/models/audit_log.py:21`), so entries survive even a CLI purge. Keep it that
+      way, and make the UI tolerate a `run_id` that no longer resolves.
+- [ ] Audit rows are append-only: no edit or delete path, not even for admins.
+
+---
+
+## 7. Cross-cutting: the logger scheduling model
+
+Items 2 (archive), 4 (Upcoming) and 5 (Loggers) all depend on one piece of missing
 backend state. Build this once, first.
 
-- [ ] **Schema** (alembic `0009`): add to `loggers` — `last_calibrated_at DATE NULL`,
-      `cal_interval_months INT NULL` (per-logger override), `due_override BOOLEAN NOT
-      NULL DEFAULT false`. Add `ITE_DEFAULT_CAL_INTERVAL_MONTHS` (default 12) to
-      `config.py`.
+**Decision 3: 12 months for every logger, measured from the last test date.** No
+per-logger interval, no per-model variation — which removes a column and a class of
+UI from the original sketch.
+
+- [ ] **Schema** (alembic `0009`): add to `loggers` — `last_calibrated_at DATE NULL`
+      and `due_override BOOLEAN NOT NULL DEFAULT false` (set when an engineer manually
+      edits a due date, so recomputation doesn't stomp it). Add
+      `ITE_CAL_INTERVAL_MONTHS` (default `12`) to `config.py` — one knob, not a
+      per-logger field, so the policy can be changed in one place if it ever does.
 - [ ] **One helper**, `recompute_logger_schedule(db, logger_id)`:
-      `last_calibrated_at` = the `certificate_date` of the most recent **complete** run
-      containing a result for that logger; `next_due_at` = that date +
-      interval — skipped entirely when `due_override` is set.
+      `last_calibrated_at` = the **test date** of the most recent `complete`,
+      non-archived run holding a result for that logger; `next_due_at` =
+      `last_calibrated_at + 12 months`; skipped entirely when `due_override` is set.
+- [ ] **Use `calibration_runs.testing_start`** (date part) as the test date — *not*
+      `certificate_date`, and not `created_at`. Rationale below.
 - [ ] **Call it from every path that changes history:** after `_do_process` completes,
-      after a run is deleted, after `PATCH /runs/{id}/dates`, and after a manual
+      after a run is archived or restored, after `PATCH /runs/{id}/dates`, and after a
       deviation correction changes a verdict.
 - [ ] **Backfill script** in `scripts/` (the repo has precedent for one-shot migrations)
-      that recomputes the whole fleet from existing `logger_results`, with a `--dry-run`
-      that prints what it would set. This is what makes the Upcoming page light up for
-      the first time.
-- [ ] Use `certificate_date`, not `created_at`, as the calibration date — the historical
-      import backdates certificates, so `created_at` would schedule those loggers years late.
+      recomputing the whole fleet from existing `logger_results`, with `--dry-run`. This
+      is what makes the Upcoming page light up for the first time.
+- [ ] Loggers with no completed run get `last_calibrated_at = NULL` and land in the
+      "Never calibrated" bucket rather than being given a fabricated due date.
+
+### Which column is "the last test date"
+
+Worth stating explicitly, because there are three plausible candidates and two of them
+are wrong:
+
+- `created_at` — when the row was inserted. The historical import ran in 2026-06 for
+  batches tested in March, so this would schedule those loggers months late.
+- `certificate_date` / `doc_date_jp` — the date the *document* was issued, typically a
+  day or two after testing. Close, but not the test date.
+- **`testing_start`** — the actual testing window, and the column migration
+  `0005_fix_test_date_jp` re-derived `test_date_jp` from, precisely because the
+  certificate had been printing the issue date as the test date. So in the live
+  database `test_date_jp` *is* `testing_start`, and `testing_start` is what the
+  certificate itself calls the test date.
+
+This supersedes the `certificate_date` suggestion in the first draft of this plan.
+`testing_start` is `NOT NULL`, so no fallback is needed.
+
+> **Data caveat for the backfill:** `scripts/historical_batches.json` contains batches
+> whose stated test date and `testing_start` disagree (Batch 1 is named "March 4" but
+> carries `testing_start: 2026-03-10`). Migration `0005` already normalised the
+> certificates to `testing_start`, so the backfill is self-consistent — but spot-check a
+> few historical loggers against the paper certificates before trusting the resulting
+> due dates.
 
 ---
 
@@ -416,14 +523,18 @@ Each phase is independently shippable.
 
 | Phase | Contents | Why here |
 |---|---|---|
-| 1 | Logger scheduling model + backfill (cross-cutting) | Unblocks Upcoming and Loggers |
+| 1 | Logger scheduling model + backfill (§7) | Unblocks Upcoming and Loggers; nothing else can be correct first |
 | 2 | Cert-number uniqueness (3c + 3d) | Highest-risk correctness gap; guards the customer-facing identifier |
 | 3 | New Calibration UX: date defaults + draft persistence (3a + 3b) | Pure frontend, immediate daily relief, no dependencies |
-| 4 | Delete run (item 2) — frontend + backend hardening + audit view | Small, self-contained; the endpoint already exists |
-| 5 | Upcoming page (item 4) | Consumes phase 1 |
-| 6 | Loggers page (item 5) | Consumes phase 1; largest backend surface |
-| 7 | Overview overhaul (item 1) | Presentation of everything above; best done once the data underneath is correct |
-| 8 | PDF export (3e) | Gated on the LibreOffice fidelity spike; largest infrastructure risk; ship last |
+| 4 | Archive + restore (§2) — schema, API, history UI | Self-contained; the endpoint exists and only changes semantics |
+| 5 | Admin audit trail (§6) | Pairs with phase 4 — archiving is only "logged properly" once the log is readable |
+| 6 | Upcoming page (§4) | Consumes phase 1 |
+| 7 | Loggers page (§5) | Consumes phase 1; largest backend surface |
+| 8 | Overview overhaul (§1) | Presentation of everything above; best done once the data underneath is correct |
+| 9 | PDF export (3e) | Starts with the LibreOffice fidelity spike; largest infrastructure risk; ship last |
+
+Phases 4 and 5 ship together — a delete button whose audit trail cannot be read is the
+gap this plan exists to close.
 
 ---
 
@@ -438,7 +549,7 @@ Each phase is independently shippable.
   on checkout. Add a `.gitattributes` (`* text=auto`, `*.sh text eol=lf`,
   `*.ps1 text eol=crlf`) before starting — a CRLF-mangled `backup.sh` or Dockerfile
   `CMD` fails in confusing ways inside the container.
-- **File deletion** (used by the run-delete path) behaves differently on Windows: an
+- **File deletion** (now only the CLI purge path, §2) behaves differently on Windows: an
   open handle blocks `unlink`. Files live inside the container's volume so this mostly
   doesn't apply, but any host-side cleanup script must tolerate `PermissionError`,
   not just `OSError`.
@@ -450,28 +561,8 @@ Each phase is independently shippable.
   `docker build` + `docker compose up -d --no-deps api`. See `docs/DEPLOYMENT.md`; this
   has bitten this project before.
 - **Deploy tarball size.** `deploy-package/images/api.tar.gz` is copied to the lab PC by
-  hand. Adding LibreOffice roughly doubles it — worth confirming how that package
-  reaches the machine before committing to it.
+  hand. Adding LibreOffice roughly doubles it — confirm how that package reaches the
+  machine (USB, network share, download) before the first PDF-enabled deploy, since the
+  transfer step is manual.
 - **Playwright e2e** needs the Docker stack running locally; on Windows use
   `npx playwright install` once per machine.
-
----
-
-## Open decisions for the user
-
-1. **Overview scope** — strictly UI-only (accept that "Recent runs" stays limited to the
-   last 30 days), or allow the one-line API change so it always shows the five most
-   recent runs? *(Recommend: allow it.)*
-2. **PDF conversion** — approve LibreOffice inside the API image (bigger image, needs a
-   fidelity check on the Japanese template), or keep `.docx`-only until a Windows-side
-   converter can be arranged? *(Recommend: LibreOffice, gated on the spike.)*
-3. **Calibration interval** — is 12 months the correct default, and does it vary by
-   logger model or by customer? This sets the default for the whole scheduling model.
-4. **Delete semantics** — hard delete (current behaviour: run, results and certificate
-   files are destroyed) or soft delete / archive, so an issued certificate can still be
-   looked up by number after the run is removed? *(This is the one decision with
-   compliance implications; worth an explicit answer.)*
-5. **Audit visibility** — is an admin-facing audit page in scope? Without it, the
-   deletion log exists in the database but cannot be read from the application.
-</content>
-</invoke>
