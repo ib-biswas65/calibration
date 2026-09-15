@@ -103,6 +103,10 @@ The two nginx.conf copies are intentionally identical; if you change one,
 change the other. Everything else that used to be duplicated between `infra/`
 and `deploy-package/` was consolidated into `deploy-package/` (2026-08-14).
 
+Moving the whole prod stack (app + database + certificate files) to a
+different Windows PC is a separate procedure from either environment above —
+see `docs/MIGRATION.md`.
+
 ## Testing
 
 - API: `pytest` in `apps/api/tests/` — pure-unit for the calibration engine,
