@@ -13,6 +13,7 @@ from ite_api.routes.loggers import router as loggers_router
 from ite_api.routes.overview import router as overview_router
 from ite_api.routes.runs import router as runs_router
 from ite_api.routes.users import router as users_router
+from ite_api.telemetry import setup_telemetry
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="ITE Calibration API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(RefreshMiddleware)
     app.add_middleware(OriginCheckMiddleware)
+    setup_telemetry(app)
 
     @app.get("/api/health")
     def health() -> dict:
