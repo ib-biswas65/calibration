@@ -1,42 +1,55 @@
 # Handoff
 
 ## State
-Repo is clean, HEAD `0db5054`. Current implementation is **ITE Calibration**
-(FastAPI + React/Vite/TS, Docker-based, running on a Windows PC at the
-calibration lab) — see `docs/ARCHITECTURE.md`. The migration plan for moving
-to a **different Windows PC, planned for next week**, is written and
-committed at `docs/MIGRATION.md`, now in its simplified form: only the live
-Postgres database and the certificate volume are treated as irreplaceable
-data; the app itself is rebuilt fresh on the new PC from a tagged, reviewed
-git commit rather than shipped as exact baked images. The mandatory
-pre-departure dry-run restore (section 2a) runs on this Mac (Docker via
-Colima) rather than needing a spare Windows machine. No code was changed this
-session — analysis/docs only. No outstanding uncommitted work.
+Repo is clean locally, HEAD `f538bd1`, rebased cleanly onto the latest
+`origin/main` (which had moved 3 commits ahead — certificate template fixes
+and a new `docs/CHANGE_LOG.md`, unrelated to this session's work). **8 local
+commits are not yet pushed** — push was held pending explicit user
+confirmation, last asked and not yet answered as of this handoff.
+
+Current implementation is **ITE Calibration** (FastAPI + React/Vite/TS,
+Docker-based, on a Windows PC at the calibration lab) — see
+`docs/ARCHITECTURE.md`. Migration plan for a **different Windows PC next
+week** is at `docs/MIGRATION.md` (simplified: only DB + certificate volume
+are irreplaceable data; app rebuilt fresh from a tagged git commit; dry run
+runs on this Mac).
+
+**Live production issue found and fixed this session:** the nightly
+`backup-windows.ps1` had two real bugs, both hit for real on the production
+PC and reported by a collaborator in GitHub issue #3 — (1) the Docker-down
+preflight check never fired in PowerShell 5.1, so a stopped Docker Desktop
+produced a silent empty backup; (2) the `pg_dump > file` redirect corrupted
+Japanese text via UTF-16 re-encoding, so **every nightly backup before
+2026-09-16 has broken data**. Both are fixed in the pending commit
+`f538bd1` — not yet on the production PC until it's pushed and someone pulls
+it there.
 
 ## Next steps
-- (since 2026-09-15) **Scope "refine the application" before touching any
-  code.** The user wants bug fixes, new features, deployment/ops cleanup, and
-  a UI redesign done before the migration, but none of it is scoped yet —
-  which bugs, which features, what specifically for ops cleanup (the
-  `backup-windows.ps1` encoding fix is one known candidate), and what
-  direction for the redesign. This is a big enough initiative to need its own
-  scoping/brainstorming pass, not ad-hoc implementation.
-- (since 2026-09-15) Before migration day, get the user's answers to the 8
-  open questions at the bottom of `docs/MIGRATION.md`. Most load-bearing:
-  **will the new PC have internet access** for `docker build`/`pip`/`npm`
-  during setup (default path assumes yes; fallback documented if not).
-- (since 2026-09-15) Also confirm: exact timing of old-PC unavailability vs.
-  final capture, whether the old PC sees real work between rehearsal and
-  final capture, and the IP/hostname plan for the new PC.
+- (since 2026-09-15) **Push to `origin/main`** — get explicit confirmation
+  from the user (asked, unanswered as of this handoff), then `git push`. The
+  collaborator on GitHub issue #2/#3 is blocked on this: they explicitly
+  asked for `docs/MIGRATION.md` to be pushed, and the backup-script fix
+  needs to reach the production PC.
+- (since 2026-09-15) After pushing, tell the collaborator (via issue
+  comments) that the backup fix landed, and ask them to pull it onto the
+  production PC — the broken nightly backup (issue #3) is still live until
+  then.
+- (since 2026-09-15) Restore-verify the DB dump from issue #2 on this Mac (or
+  wherever it landed) to independently confirm the collaborator's numbers —
+  this was the planned "Part C" step, not yet done from this side.
+- (since 2026-09-15) **Scope "refine the application"** (bug fixes, features,
+  ops cleanup, UI redesign) before touching any of that code — still not
+  scoped, see prior open question.
+- (since 2026-09-15) Get answers to the 8 open questions in
+  `docs/MIGRATION.md` (internet access on new PC is the most load-bearing).
 - (since 2026-09-15) Optionally refresh the GitNexus index (`gitnexus
-  analyze`) — it's several commits stale (last indexed `c08b1e3`, HEAD is now
-  `0db5054`, all docs-only diffs so far).
+  analyze`) — several commits stale.
 
 ## Open questions
-- (since 2026-09-15) See `docs/MIGRATION.md` open-questions section — these
-  are user/logistics decisions, not blocked-on-Claude items.
-- (since 2026-09-15) What specifically does "refine the application" include?
-  Needs a scoping conversation with the user (see Next steps).
+- (since 2026-09-15) Push confirmation — asked, awaiting user response.
+- (since 2026-09-15) See `docs/MIGRATION.md` open-questions section.
+- (since 2026-09-15) "Refine the application" scope — needs a conversation.
 
 ## In flight
-(none — working tree clean, nothing mid-change)
+- `f538bd1` and 7 commits before it (session's doc/migration/backup-fix work)
+  — committed locally, rebased onto current `origin/main`, **not pushed**.
