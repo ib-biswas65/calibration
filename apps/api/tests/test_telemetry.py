@@ -104,12 +104,26 @@ def test_setup_telemetry_never_raises_with_endpoint_set(monkeypatch, db_session:
 
 def test_setup_telemetry_instruments_each_distinct_engine(monkeypatch) -> None:
     """A second create_app() in the same process against a *different*
-    SQLAlchemy engine must still get that engine instrumented.
+    SQLAlchemy engine must still trigger this app's own instrumentation
+    call for that engine, instead of being silently skipped by our
+    bookkeeping.
 
     The "already instrumented" cache used to be a single module-level bool,
     so a second, different engine created later in the same process would
     be silently skipped once the first engine had flipped the flag. It's
     now keyed by engine identity — this is a regression test for that.
+
+    What this test does NOT prove: with SQLAlchemyInstrumentor.instrument
+    mocked out here, this only demonstrates that *this app's* WeakSet
+    bookkeeping calls .instrument() once per distinct engine. It cannot
+    demonstrate that a second real engine is actually instrumented by the
+    real library in production, because the mock does not reproduce
+    opentelemetry-instrumentation-sqlalchemy's own process-wide singleton
+    guard (BaseInstrumentor only ever completes the first .instrument()
+    call in a process; a real second call is a silent no-op at the library
+    level). See the _instrumented_engines comment in ite_api/telemetry.py
+    for the full explanation. This has no effect on Calibration's actual
+    single-engine-per-process deployment.
     """
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from sqlalchemy import create_engine

@@ -38,16 +38,38 @@ SERVICE_NAME = "calibration-api"
 
 # Module-level cache so repeated calls (e.g. create_app() invoked multiple
 # times in the same process, as the test suite does) reuse one TracerProvider
-# and instrument each distinct SQLAlchemy engine exactly once, instead of
-# piling up duplicate exporters/background export threads or
-# re-instrumenting an already-instrumented engine.
+# and avoid asking this app's own code to re-instrument an engine it has
+# already seen, instead of piling up duplicate exporters/background export
+# threads or issuing a redundant .instrument() call for the same engine.
 #
 # _instrumented_engines is keyed by engine identity (a WeakSet of the engine
 # objects themselves, not a plain bool) so that if create_app() ever runs
 # more than once in the same process with *different* engine instances
-# (e.g. the test suite), each distinct engine still gets instrumented
-# instead of the second one silently being skipped because "some engine,
-# once upon a time" was already instrumented.
+# (e.g. the test suite), this app's own bookkeeping does not skip the
+# second engine just because "some engine, once upon a time" was already
+# seen.
+#
+# IMPORTANT LIMITATION (outside this app's control): this WeakSet only
+# prevents *this app* from calling .instrument() twice on the same engine.
+# It does not make more than one engine per process actually get
+# instrumented in production. opentelemetry-instrumentation-sqlalchemy's
+# SQLAlchemyInstrumentor extends BaseInstrumentor, which is a class-level
+# singleton (its __new__ always returns the same instance) and tracks
+# "already instrumented" as a class-level flag set on the FIRST successful
+# .instrument() call anywhere in the process. That flag is never reset per
+# engine, so a genuinely second .instrument(engine=engine_b, ...) call later
+# in the same process is silently a no-op at the library level, even though
+# engine_b is not in _instrumented_engines and this app dutifully calls
+# .instrument() for it. This is a known, permanent characteristic of how
+# most OTel Python instrumentors are designed (one instrumentation per
+# process), not a bug to keep chasing here. It has no practical effect
+# today: Calibration's real deployment is one process, one engine, one
+# create_app() call. If this app ever legitimately needs more than one
+# SQLAlchemy engine instrumented in the same process, this approach will
+# not achieve that — a different strategy would be needed (e.g. check
+# whether the library exposes a way to hook a specific engine directly via
+# SQLAlchemy's own event system, rather than going through
+# SQLAlchemyInstrumentor's process-wide singleton).
 _tracer_provider = None
 _instrumented_engines: weakref.WeakSet = weakref.WeakSet()
 
@@ -94,6 +116,11 @@ def setup_telemetry(app: FastAPI) -> None:
         db_session._init()
         engine = db_session._engine
         if engine not in _instrumented_engines:
+            # This only stops *this app* from redundantly calling
+            # .instrument() on an engine it has already seen. It does not
+            # guarantee a second, genuinely different engine gets
+            # instrumented by the library — see the module-level comment
+            # on _instrumented_engines above for why.
             SQLAlchemyInstrumentor().instrument(
                 engine=engine, tracer_provider=_tracer_provider
             )
