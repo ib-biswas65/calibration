@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 import os
+import weakref
 
 from fastapi import FastAPI
 
@@ -37,11 +38,18 @@ SERVICE_NAME = "calibration-api"
 
 # Module-level cache so repeated calls (e.g. create_app() invoked multiple
 # times in the same process, as the test suite does) reuse one TracerProvider
-# and instrument the shared SQLAlchemy engine exactly once, instead of piling
-# up duplicate exporters/background export threads or re-instrumenting an
-# already-instrumented engine.
+# and instrument each distinct SQLAlchemy engine exactly once, instead of
+# piling up duplicate exporters/background export threads or
+# re-instrumenting an already-instrumented engine.
+#
+# _instrumented_engines is keyed by engine identity (a WeakSet of the engine
+# objects themselves, not a plain bool) so that if create_app() ever runs
+# more than once in the same process with *different* engine instances
+# (e.g. the test suite), each distinct engine still gets instrumented
+# instead of the second one silently being skipped because "some engine,
+# once upon a time" was already instrumented.
 _tracer_provider = None
-_sqlalchemy_instrumented = False
+_instrumented_engines: "weakref.WeakSet" = weakref.WeakSet()
 
 
 def setup_telemetry(app: FastAPI) -> None:
@@ -50,7 +58,7 @@ def setup_telemetry(app: FastAPI) -> None:
     Safe to call unconditionally from ``create_app()``: it is a no-op unless
     ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set, and never raises.
     """
-    global _tracer_provider, _sqlalchemy_instrumented
+    global _tracer_provider
 
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
     if not endpoint:
@@ -81,14 +89,15 @@ def setup_telemetry(app: FastAPI) -> None:
 
         FastAPIInstrumentor.instrument_app(app, tracer_provider=_tracer_provider)
 
-        if not _sqlalchemy_instrumented:
-            from ite_api.db import session as db_session
+        from ite_api.db import session as db_session
 
-            db_session._init()
+        db_session._init()
+        engine = db_session._engine
+        if engine not in _instrumented_engines:
             SQLAlchemyInstrumentor().instrument(
-                engine=db_session._engine, tracer_provider=_tracer_provider
+                engine=engine, tracer_provider=_tracer_provider
             )
-            _sqlalchemy_instrumented = True
+            _instrumented_engines.add(engine)
 
         _log.info(
             "OpenTelemetry tracing enabled: service=%s endpoint=%s", SERVICE_NAME, endpoint

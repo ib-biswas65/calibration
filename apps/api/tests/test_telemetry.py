@@ -62,11 +62,34 @@ def test_app_starts_and_serves_with_telemetry_enabled(
         assert resp.json()["status"] == "ok"
 
 
-def test_setup_telemetry_is_a_noop_without_endpoint(_clean_otel_env) -> None:
-    """setup_telemetry must not raise, and must not require a DB/engine,
-    when telemetry is disabled."""
+def test_setup_telemetry_is_a_noop_without_endpoint(monkeypatch, _clean_otel_env) -> None:
+    """setup_telemetry must not raise, must not require a DB/engine, and —
+    per this module's own contract — must construct zero SDK objects when
+    telemetry is disabled.
+
+    "Doesn't raise" alone is a weak proof: a call that's skipped entirely
+    can't raise either. So we prove the stronger claim directly: patch
+    TracerProvider.__init__ to blow up (and record) if it's ever invoked,
+    reset the module's cache so no earlier test can mask a real call, then
+    confirm neither the constructor fired nor the cache got populated.
+    """
+    import ite_api.telemetry as telemetry_module
+    from opentelemetry.sdk.trace import TracerProvider
+
+    constructed: list[bool] = []
+
+    def _fail_if_constructed(self, *args, **kwargs):
+        constructed.append(True)
+        raise AssertionError("TracerProvider must not be constructed when telemetry is disabled")
+
+    monkeypatch.setattr(TracerProvider, "__init__", _fail_if_constructed)
+    monkeypatch.setattr(telemetry_module, "_tracer_provider", None)
+
     app = FastAPI()
     setup_telemetry(app)  # should return quietly, no instrumentation applied
+
+    assert constructed == [], "TracerProvider was constructed even though telemetry is disabled"
+    assert telemetry_module._tracer_provider is None
 
 
 def test_setup_telemetry_never_raises_with_endpoint_set(monkeypatch, db_session: Session) -> None:
@@ -76,3 +99,45 @@ def test_setup_telemetry_never_raises_with_endpoint_set(monkeypatch, db_session:
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=test-key")
     app = FastAPI()
     setup_telemetry(app)
+
+
+def test_setup_telemetry_instruments_each_distinct_engine(monkeypatch) -> None:
+    """A second create_app() in the same process against a *different*
+    SQLAlchemy engine must still get that engine instrumented.
+
+    The "already instrumented" cache used to be a single module-level bool,
+    so a second, different engine created later in the same process would
+    be silently skipped once the first engine had flipped the flag. It's
+    now keyed by engine identity — this is a regression test for that.
+    """
+    import ite_api.telemetry as telemetry_module
+    from ite_api.db import session as db_session_module
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from sqlalchemy import create_engine
+
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:59999")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=test-key")
+    monkeypatch.setattr(telemetry_module, "_tracer_provider", None)
+    monkeypatch.setattr(db_session_module, "_init", lambda: None)
+
+    instrumented_engines: list[object] = []
+
+    def _fake_instrument(self, *, engine, tracer_provider=None):
+        instrumented_engines.append(engine)
+
+    monkeypatch.setattr(SQLAlchemyInstrumentor, "instrument", _fake_instrument)
+
+    engine_a = create_engine("sqlite://")
+    engine_b = create_engine("sqlite://")
+
+    monkeypatch.setattr(db_session_module, "_engine", engine_a)
+    setup_telemetry(FastAPI())
+
+    monkeypatch.setattr(db_session_module, "_engine", engine_b)
+    setup_telemetry(FastAPI())
+
+    assert instrumented_engines == [engine_a, engine_b]
+
+    # Calling again with the same (second) engine must not instrument it twice.
+    setup_telemetry(FastAPI())
+    assert instrumented_engines == [engine_a, engine_b]
