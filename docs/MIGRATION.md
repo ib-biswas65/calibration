@@ -11,6 +11,28 @@ Administrator. `C:\Calibration` is assumed to be the repo checkout on the old
 PC (per `deploy.ps1` and `register-task.ps1`) — adjust every path below if
 yours differs.
 
+## Constraint: this is one-shot, not a live cutover
+
+**The old PC will be completely unreachable once it's gone** — no remote
+access, no one on-site, nothing to fall back to. There's also a **multi-day
+gap** between capturing the migration bundle and actually setting up the new
+PC. Together this rules out the normal safety nets:
+
+- **No rollback.** Every other section below that used to say "fall back to
+  the old PC" no longer applies — see the rewritten section 5.
+- **No re-capture.** If something in the bundle is missing or corrupt, there
+  is no going back to grab it. The bundle captured before the old PC leaves
+  is the *only* copy of the live data that will ever exist.
+- **No side-by-side debugging.** You can't compare the new PC against the old
+  one while both are up, because they never will be at the same time on
+  migration day.
+
+This changes what "done" means for the capture step: it isn't done when the
+files are copied, it's done when a **full test restore on a spare machine has
+actually verified the bundle works**, while the old PC is still there to
+recapture from if it doesn't. Section 2a below is new and exists specifically
+for this. Do not skip it.
+
 ## Why this isn't just "copy the git repo"
 
 `deploy-package/images/`, `deploy-package/cal_data.tar.gz`, and every `.env`
@@ -67,6 +89,20 @@ certificate/batch data. This runbook keeps the dump inside Docker (`pg_dump
    ```
 6. Prepare the new PC (section 2 below) ahead of time so migration day is only
    capture + copy + restore.
+7. **Decide the capture timing given the multi-day gap.** Capturing too early
+   means anything entered on the old PC afterward is lost forever (no
+   re-capture once it's gone); capturing too late risks not leaving time for
+   the dry-run restore (2a) before the PC disappears. Recommended order:
+   - Do a **rehearsal capture** now, well before the old PC needs to leave,
+     and run the full dry-run restore (2a) against it on a spare machine.
+     This validates the *procedure*, not necessarily fresh data.
+   - Do the **real, final capture** as close as possible to the moment the
+     old PC actually becomes unavailable — ideally the same day/hour — so
+     the live-data gap is minutes, not days. Everything entered between the
+     final capture and the PC's departure is unrecoverable.
+   - If the old PC will sit idle (no new calibration runs) during the gap
+     between capture and departure, the timing above matters less — confirm
+     this with whoever operates it day to day.
 
 ## 1. What has to be physically copied (none of this comes from git)
 
@@ -151,16 +187,46 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    robocopy C:\ite-calibration-backups "$S\old-daily-backups" /E /R:2 /W:2
    ```
 
-7. **Hash everything, then copy to the transfer medium and re-verify:**
+7. **Hash everything, then copy to at least two separate transfer media, and
+   re-verify each independently.** With no fallback and no re-capture, a
+   single USB drive that fails or gets lost is a total data-loss event —
+   don't rely on one copy.
    ```powershell
    Get-ChildItem $S -File | Get-FileHash -Algorithm SHA256 | Select-Object Hash, Path | Out-File "$S\SHA256SUMS.txt"
-   robocopy $S "<TRANSFER>\ite-migrate-<STAMP>" /E /R:3 /W:5
+   robocopy $S "<TRANSFER-1>\ite-migrate-<STAMP>" /E /R:3 /W:5
+   robocopy $S "<TRANSFER-2>\ite-migrate-<STAMP>" /E /R:3 /W:5
    ```
+   Verify each copy's hashes against `SHA256SUMS.txt` right there on the old
+   PC, before you consider the capture done — this is your last chance to
+   redo it if a copy failed.
 
-8. **Decide on the old app's state during restore.** Cleanest: leave the old
-   stack stopped (postgres can stay up harmlessly) until the new PC passes all
-   checks in section 3. If you bring the old app back up before cutover, treat
-   this capture as a rehearsal and repeat steps 2.1–2.7 for the real cutover.
+8. **This is the real thing, not a rehearsal, once you're past step 2a
+   (below) and satisfied.** There is no "bring the old app back up and
+   recapture later" — once the old PC leaves, this bundle is what the new PC
+   will run forever. If this capture is a rehearsal (see the timing note in
+   step 0.7), say so explicitly to whoever handles the final capture, so
+   nobody mistakes rehearsal data for the real migration.
+
+## 2a. Prove the bundle actually restores — before the old PC is unreachable
+
+This is the step that replaces "we can always go back and check." Do it on
+any spare Windows machine with Docker Desktop (a spare laptop is fine — it
+doesn't need to be powerful, just needs to run Docker) **while the old PC is
+still available**, so if the restore fails you can fix the capture and redo
+it immediately instead of finding out after it's too late.
+
+1. Copy one of the two bundle copies from step 2.7 onto the spare machine.
+2. Run all of section 3 ("On the new PC: restore") against it, in full,
+   including the row-count comparison (3.6), volume file-count comparison
+   (3.7), and the browser smoke test (3.9) — log in, open a run, download a
+   `.docx`, open the file.
+3. Only once this dry run passes cleanly is the capture considered validated.
+   If anything fails, go back to section 2, fix it, and redo the capture (you
+   still have the old PC at this point — that's the whole reason this step
+   exists).
+4. Wipe or reset the spare machine's containers/volumes afterward
+   (`docker compose down -v` in the copied `deploy-package/`) so it doesn't
+   linger as a second, drifting copy of production data.
 
 ## 3. On the new PC: restore
 
@@ -281,48 +347,54 @@ between load and start. These steps fix both.
 
 ## 4. Cutover plan
 
-1. **Address.** Two options:
-   - **(a) New PC takes over the old IP/hostname** — no `.env` change, no user
-     retraining. Requires the old PC off the network or renumbered first.
-     Best if the lab reaches the app by IP/hostname.
-   - **(b) New PC gets a new address** — set
-     `ITE_ALLOWED_ORIGINS=http://localhost,http://<NEW-IP>` and tell users
-     the new URL. Keep the old IP in the list only during fallback if the old
-     PC is genuinely offline (otherwise it's confusing).
-2. **Order:** section 2 (freeze + capture) → section 3 (restore + verify on
-   new PC while old stack stays stopped) → switch address per 4.1 → users
-   test → done. Downtime ≈ capture + restore time (this dataset is small: DB
-   dump well under 1 MB compressed).
+1. **Address.** Since the old PC won't be present to conflict with, the new
+   PC can most likely just take the same IP/hostname the lab already uses —
+   no `.env` change beyond what's already there, no user retraining, no
+   bookmarks to update. Only assign it a new address if that's genuinely
+   easier logistically; in that case set
+   `ITE_ALLOWED_ORIGINS=http://localhost,http://<NEW-IP>` and tell users the
+   new URL ahead of time (there's no old address to keep working alongside it
+   as a bridge — the old PC is gone).
+2. **Order:** section 2 (final capture — see 0.7 on timing) → 2a (already
+   done, earlier, as a dry run) → section 3 (restore + verify on the new PC)
+   → confirm address per 4.1 → users test → done. Downtime is the gap between
+   final capture and a verified-working new PC — minimize this by doing 2a
+   ahead of time so section 3 is a repeat of something already proven to
+   work, not a first attempt.
 3. **Sessions:** cookies are per-host, so everyone logs in again once.
    Passwords/users carry over in the dump.
-4. **Old PC after cutover** — stop, don't delete:
-   ```powershell
-   Set-Location C:\Calibration\deploy-package
-   docker compose stop
-   Unregister-ScheduledTask -TaskName "ITE Calibration Backup" -Confirm:$false
-   ```
-   Stopping (not `down -v`) preserves images and volumes for rollback. If the
-   old PC keeps its IP under option (b), also disable Docker Desktop autostart
-   or it'll come back on reboot and answer on port 80.
-5. **GitHub Actions self-hosted runner:** nothing is installed on the old PC
+4. **GitHub Actions self-hosted runner:** nothing is installed on the old PC
    today, workflow jobs just queue (see `docs/DEPLOYMENT.md`). Don't install a
    runner on the new PC as part of this move. If ever re-enabled, both
    DEPLOYMENT.md warnings apply unchanged — `main` needs branch protection
    first.
-6. **Fallback period:** keep the old PC intact ≥2 weeks and until, on the new
-   PC: one real calibration run has completed end-to-end with a downloaded
-   certificate, the 02:00 backup task has produced ≥2 good backups, and one
-   reboot has come back clean.
+5. **There is no fallback period.** Once the old PC is gone, the new PC *is*
+   production — there's no "keep the old one around for two weeks just in
+   case." This is exactly why section 2a (dry run before the old PC leaves)
+   carries all the weight that a fallback period would otherwise cover. Treat
+   passing 2a as the actual go/no-go gate, not the cutover itself.
 
-## 5. Rollback
+## 5. There is no rollback — plan accordingly
 
-1. New PC: `docker compose stop` (from `deploy-package/`).
-2. Old PC: `docker compose up -d`, re-run `register-task.ps1`, restore the
-   address if moved.
-3. Any runs created on the new PC in the interim exist only there — repeat
-   section 2 on the new PC and section 3 steps 6–7 on the old one to bring
-   them back, or accept the loss if they were test runs. Decide which before
-   cutover (open question below).
+With the old PC gone, "rollback" can only mean **re-running the restore from
+the bundle**, not reverting to a running old system. Concretely:
+
+1. If something goes wrong on the new PC *after* the dry run (2a) already
+   passed, the fix is almost always operational (wrong `.env` value, Docker
+   Desktop misconfigured, a step skipped) rather than a bad bundle — redo the
+   relevant part of section 3 from the still-intact bundle copy on the new
+   PC's own disk.
+2. If the bundle itself turns out to be bad (missed in 2a, or a copy
+   corrupted in transit), there is nothing to recover from except the second
+   transfer-medium copy made in step 2.7. This is the entire reason for
+   keeping two copies — verify both are readable *before* leaving the old
+   PC's location, not after.
+3. Any calibration work done on the old PC between the final capture and its
+   departure is unrecoverable, by design of this constraint — this is what
+   the timing guidance in step 0.7 is trying to minimize, not eliminate.
+4. Because of 1–3, treat the dry run in section 2a as mandatory, not
+   optional. It is the only point in this whole process where a mistake is
+   still cheap to fix.
 
 ## 6. Risks and how to detect them
 
@@ -339,8 +411,10 @@ between load and start. These steps fix both.
 | Docker Desktop differences | compose v1 absent (fine — v2 syntax used throughout), file sharing off, Hyper-V vs WSL2 | Step 3.1 checks |
 | Bind-mount path syntax | `docker run -v` with backslashes fails silently | Forward slashes as in both scripts |
 | `register-task.ps1` hardcoded path/permissions | Task runs but backup aborts | Same `C:\Calibration` path, account in `docker-users`, run once by hand (3.10) |
-| Old PC comes back on the same IP | Two apps with diverging data | 4.4: stop stack, unregister task, disable autostart / take off network |
-| Uncommitted source only on old disk | Lost if old PC wiped (not a runtime problem — images are self-contained) | `git status` in 0.3; whole-folder robocopy in 2.6 |
+| Bundle has a gap discovered only after the old PC is gone | Missing certs, wrong row counts, unusable image | Mandatory dry run on a spare machine (2a) while the old PC can still be recaptured from |
+| One transfer-medium copy is corrupt/lost | Only the second copy is usable, or nothing is | Two independent copies (2.7), both hash-verified before leaving the old PC's site |
+| Data entered on old PC between final capture and its departure | Permanently missing from the new PC | Minimize the gap per the timing guidance in 0.7; accept this loss is real if the gap can't be closed |
+| Uncommitted source only on old disk | Lost once old PC is gone (not a runtime problem — images are self-contained) | `git status` in 0.3; whole-folder robocopy in 2.6 |
 
 **Optional extra insurance** during the freeze (old PC, everything stopped) —
 a raw copy of the Postgres data directory, only useful if the SQL dump turns
@@ -353,16 +427,25 @@ docker compose start postgres
 
 ## Open questions
 
-1. Will the new PC take over the old PC's IP/hostname (4.1a), or get a new
-   address (4.1b)? How do lab users reach the app today?
-2. Are both PCs on the network simultaneously during the move, or is transfer
-   USB-only?
-3. What downtime window next week, and is any calibration run likely to be
-   in progress then?
+Resolved: the old PC will be completely unreachable once it leaves (no
+remote access, no one on-site), and there's a multi-day gap between capture
+and the new PC's setup. The plan above (sections 2a and 5) is built around
+those two facts. Remaining questions:
+
+1. Is a spare Windows machine with Docker Desktop actually available for the
+   mandatory dry run (2a) before the old PC leaves? If not, this needs to be
+   sourced before migration day — the plan doesn't have a safe fallback if
+   this step can't happen.
+2. Will the new PC take over the old PC's IP/hostname (4.1), or does it need
+   a new address? How do lab users reach the app today?
+3. Exactly when does the old PC become unreachable relative to when you can
+   do the final capture — same day, or is there slack? This decides how much
+   of the 0.7 timing guidance you can actually follow.
 4. Is the repo really at `C:\Calibration` on the old PC, and is `git status`
    clean there?
-5. Should runs created on the new PC during the fallback period count as real
-   data (must be carried back on rollback) or test data?
+5. Will the old PC still be used for real calibration work between the
+   rehearsal capture and the final capture? If yes, only the final capture
+   (done as late as possible) can be trusted as complete.
 6. Should `backup-windows.ps1` be fixed to the byte-safe `pg_dump -f` +
    `docker cp` form as a follow-up, and should an existing daily backup file
    be checked for the UTF-16 signature first?
