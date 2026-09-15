@@ -73,8 +73,9 @@ def test_setup_telemetry_is_a_noop_without_endpoint(monkeypatch, _clean_otel_env
     reset the module's cache so no earlier test can mask a real call, then
     confirm neither the constructor fired nor the cache got populated.
     """
-    import ite_api.telemetry as telemetry_module
     from opentelemetry.sdk.trace import TracerProvider
+
+    import ite_api.telemetry as telemetry_module
 
     constructed: list[bool] = []
 
@@ -110,10 +111,11 @@ def test_setup_telemetry_instruments_each_distinct_engine(monkeypatch) -> None:
     be silently skipped once the first engine had flipped the flag. It's
     now keyed by engine identity — this is a regression test for that.
     """
-    import ite_api.telemetry as telemetry_module
-    from ite_api.db import session as db_session_module
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from sqlalchemy import create_engine
+
+    import ite_api.telemetry as telemetry_module
+    from ite_api.db import session as db_session_module
 
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:59999")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=test-key")

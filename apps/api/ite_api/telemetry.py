@@ -49,7 +49,7 @@ SERVICE_NAME = "calibration-api"
 # instead of the second one silently being skipped because "some engine,
 # once upon a time" was already instrumented.
 _tracer_provider = None
-_instrumented_engines: "weakref.WeakSet" = weakref.WeakSet()
+_instrumented_engines: weakref.WeakSet = weakref.WeakSet()
 
 
 def setup_telemetry(app: FastAPI) -> None:
