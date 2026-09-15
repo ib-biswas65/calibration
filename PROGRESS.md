@@ -6,3 +6,4 @@ Calibration project.
 - 2026-08-22 — restored onto new machine (cloned fresh from remote)
 - 2026-09-15 — reviewed current implemented state of the app for the user, no code changes — outcome: confirmed ITE Calibration dashboard (FastAPI+React) generating Japanese calibration certs is the current, working implementation ([details](logs/DAILY-2026-09-15.md))
 - 2026-09-15 — wrote Windows PC migration runbook (app + DB + certificate volume) ahead of a planned move next week — outcome: `docs/MIGRATION.md` committed (`9cca1d6`), 7 open questions left for the user before running it for real ([details](logs/DAILY-2026-09-15.md))
+- 2026-09-15 — reworked migration runbook after user confirmed old PC will be unreachable post-move with a multi-day capture-to-setup gap — outcome: added mandatory pre-departure dry-run restore step, two-copy bundle redundancy, rewrote rollback as "there isn't one" (`371bff2`) ([details](logs/DAILY-2026-09-15.md))
