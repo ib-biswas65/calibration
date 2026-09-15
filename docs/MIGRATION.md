@@ -5,6 +5,14 @@ the current production Windows PC to a different one. Written ahead of a
 planned move; fill in the placeholders and the open questions at the bottom
 before running this for real.
 
+**Decision (2026-09-15): the app is rebuilt fresh on the new PC from git; only
+the database and certificate files are carried over as irreplaceable data.**
+This is a deliberate change from shipping the exact running Docker images —
+the app is also getting bug fixes, new features, an ops cleanup, and a UI
+redesign before the move, so "the exact bits currently running" is not even
+the thing you want on the new PC. See "Why the app doesn't need to be copied
+byte-for-byte" below for why this is safe now (it wasn't, in August).
+
 Placeholders: `<OLD-IP>`, `<NEW-IP>`, `<STAMP>` (e.g. `20260922`), `<TRANSFER>`
 (USB drive or network share path, e.g. `E:\ite-migrate`). Run all PowerShell as
 Administrator. `C:\Calibration` is assumed to be the repo checkout on the old
@@ -33,16 +41,35 @@ actually verified the bundle works**, while the old PC is still there to
 recapture from if it doesn't. Section 2a below is new and exists specifically
 for this. Do not skip it.
 
-## Why this isn't just "copy the git repo"
+## Why the app doesn't need to be copied byte-for-byte
 
-`deploy-package/images/`, `deploy-package/cal_data.tar.gz`, and every `.env`
-file are gitignored — they exist **only** on the machine that's currently
-running the app, never in git. Rebuilding images from source instead of
-copying the running ones is exactly what caused the 2026-08-14 incident (see
-`docs/DEPLOYMENT.md`): the production image had a month of code that was never
-committed, so a rebuild from the git tree silently regressed the API. This
-runbook copies the exact running images and verifies their IDs at every step
-instead of trusting git or a rebuild.
+The 2026-08-14 incident (see `docs/DEPLOYMENT.md`) happened because the
+running production image had a month of code that was **never committed to
+git**, so rebuilding from the git tree silently shipped an older version.
+That risk applied *then* because git and the deployed image had quietly
+diverged, and nobody knew until they rebuilt.
+
+That's not the situation now: `docs/ARCHITECTURE.md` and the 2026-08-14
+recovery commits (`9bcc0ef`, `d55003a`, `3a78a4b`, `c08b1e3`) brought git back
+in sync with what should run, and there's an explicit decision to actively
+develop the app further (bug fixes, features, ops cleanup, UI redesign)
+before it goes on the new PC. So the new PC is **meant** to run something
+different from whatever the old PC's baked images contain — building fresh
+from git is not a risk here, it's the goal. The one rule that keeps this
+safe: **always build the new PC's images from a specific, reviewed git commit
+you can name** (tag it), never from an uncommitted or in-progress state — the
+same discipline that failed in August, just pointed the right direction now.
+
+What still can't come from git, because it's real operational data that only
+ever existed on the running machine:
+
+- The live Postgres database (calibration runs, users, audit log).
+- The certificate volume (`cal_data` — generated `.docx` files and run
+  inputs).
+
+Both of those are still gitignored (`deploy-package/cal_data.tar.gz`, and the
+`seed/db_full.sql` in the repo is a stale snapshot, not live data) and are the
+entire subject of this runbook now.
 
 It also avoids piping the SQL dump through PowerShell. `backup-windows.ps1`'s
 `pg_dump ... > file` redirect can re-encode through PowerShell's text pipeline
@@ -50,39 +77,38 @@ It also avoids piping the SQL dump through PowerShell. `backup-windows.ps1`'s
 certificate/batch data. This runbook keeps the dump inside Docker (`pg_dump
 -f` + `docker cp`) end to end.
 
-## 0. Before migration day (old PC, no downtime)
+## 0. Before migration day
 
-1. Record what's actually running — you'll compare against this later:
-   ```powershell
-   docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}"
-   docker inspect --format "{{.Name}} runs image ID {{.Image}}" ite-calibration-api-1 ite-calibration-web-1 ite-calibration-postgres-1 ite-calibration-edge-1
-   docker images --format "table {{.Repository}}`t{{.Tag}}`t{{.ID}}`t{{.CreatedAt}}" | Select-String "ite-calibration|postgres|nginx"
+1. **Finish and merge the app refinement work** (bug fixes, features, ops
+   cleanup, UI redesign) to `main` before picking a build commit — this
+   doesn't have to be finished on the old PC or block the DB capture below,
+   but the new PC's build should come from a finished, reviewed state, not a
+   WIP branch. That's the one rule that keeps "build fresh from git" safe
+   (see above).
+2. **Pick and tag the exact commit the new PC will run:**
+   ```bash
+   git tag -a windows-migration-<STAMP> -m "Build for new production PC" main
+   git push origin windows-migration-<STAMP>
    ```
-2. Confirm the `:latest` tag still points at what the containers actually run
-   (the DEPLOYMENT.md lesson, as one check):
-   ```powershell
-   docker inspect --format "{{.Id}}" ite-calibration-api:latest
-   docker inspect --format "{{.Image}}" ite-calibration-api-1
-   docker inspect --format "{{.Id}}" ite-calibration-web:latest
-   docker inspect --format "{{.Image}}" ite-calibration-web-1
-   ```
-   If they differ, retag so `:latest` follows the running container:
-   ```powershell
-   docker tag ite-calibration-api:latest ite-calibration-api:tag-was-latest-<STAMP>
-   docker tag <running-api-image-id> ite-calibration-api:latest
-   ```
-   Repeat for web if needed.
-3. Check for uncommitted work on the old PC (July's code was never committed;
-   don't assume this tree is clean):
+   This gives you a fixed, nameable reference for the build step in section
+   3, instead of "whatever `main` happens to be that day."
+3. On the **old PC**, check for uncommitted work that never made it to git
+   (July's code was never committed; don't assume this tree is clean — if
+   there's something real here, decide whether it needs to be ported into
+   the refinement work before the tag in step 0.2, since it won't otherwise
+   reach the new PC):
    ```powershell
    git -C C:\Calibration status
    git -C C:\Calibration log -1 --format="%h %ad %s" --date=short
    ```
-4. Note the current `.env` values you'll need to reason about later:
+4. On the **old PC**, note the current `.env` values as a reference (the new
+   PC gets fresh secrets, not these, but the allowed-origins value is useful
+   context):
    ```powershell
    Select-String -Path C:\Calibration\deploy-package\.env -Pattern "^ITE_ALLOWED_ORIGINS|^POSTGRES_USER|^POSTGRES_DB"
    ```
-5. Note the Postgres version in use:
+5. On the **old PC**, note the Postgres version in use, so the new PC's build
+   pulls the same major version:
    ```powershell
    docker inspect --format "{{.Config.Image}}" ite-calibration-postgres-1
    docker exec ite-calibration-postgres-1 postgres --version
@@ -104,19 +130,24 @@ certificate/batch data. This runbook keeps the dump inside Docker (`pg_dump
      between capture and departure, the timing above matters less — confirm
      this with whoever operates it day to day.
 
-## 1. What has to be physically copied (none of this comes from git)
+## 1. What has to be physically copied (this is now just data, not the app)
 
 | Item | Source on old PC | Why not git |
 |---|---|---|
-| `ite-images-<STAMP>.tar` | `docker save` of the running api + web images | `deploy-package/images/` is gitignored, doesn't exist in the repo; a rebuild regressed the API by a month on 2026-08-14 |
 | `db-<STAMP>.sql` | fresh `pg_dump` of the live DB | `seed/db_full.sql` is a stale snapshot, and gitignored anyway |
 | `cal_data-<STAMP>.tar.gz` | fresh tar of the `ite-calibration_cal_data` volume | gitignored, never in the repo — this is the certificates + run inputs |
-| `.env` | `C:\Calibration\deploy-package\.env` | gitignored — holds the real Postgres password and JWT secret |
-| `C:\Calibration\` (whole folder) | robocopy | may hold uncommitted source; is what `register-task.ps1`/`deploy.ps1` point at |
-| `C:\ite-calibration-backups\` | optional | last 30 days of daily backups, extra fallback |
+| `.env` (reference only, not restored verbatim) | `C:\Calibration\deploy-package\.env` | just to know the old `ITE_ALLOWED_ORIGINS`/DB name; the new PC gets fresh secrets (section 3) |
+| `C:\ite-calibration-backups\` | optional | last 30 days of daily backups, extra fallback if the fresh dump is somehow bad |
 
-Not copied: the `pg_data` volume as raw files — the SQL dump replaces it (an
-optional raw copy is in section 5 as extra insurance).
+**Not copied, and no longer needed at all:** the running Docker images. The
+new PC builds its own from the tagged commit in step 0.2. Not copied either:
+the `pg_data` volume as raw files — the SQL dump replaces it (an optional raw
+copy is in section 6 as extra insurance).
+
+If the new PC won't have reliable internet access to `docker build` (pulling
+base images, pip/npm packages), see the note at the top of section 3 —
+building elsewhere and transferring the images is still an option, it's just
+no longer the default path.
 
 ## 2. On the old PC: capture everything (downtime starts here)
 
@@ -136,18 +167,7 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    beforehand for any run stuck `processing` — it'll be reset to failed on the
    next API start, which is expected.
 
-2. **Save the exact running images** (tags survive `docker load`; confirmed
-   correct in step 0.2). Include any rollback tags `docker images
-   ite-calibration-api` shows.
-   ```powershell
-   docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | Select-String "ite-calibration"
-   docker save -o "$S\ite-images-<STAMP>.tar" ite-calibration-api:latest ite-calibration-web:latest
-   docker save -o "$S\base-images-<STAMP>.tar" postgres:16-alpine nginx:1.27-alpine
-   docker inspect --format "{{.Id}}" ite-calibration-api:latest ite-calibration-web:latest | Out-File "$S\image-ids.txt"
-   Get-Content "$S\image-ids.txt"
-   ```
-
-3. **Dump the database** without touching PowerShell text encoding:
+2. **Dump the database** without touching PowerShell text encoding:
    ```powershell
    docker exec ite-calibration-postgres-1 pg_dump -U ite --clean --if-exists -f /tmp/db-<STAMP>.sql ite
    docker cp ite-calibration-postgres-1:/tmp/db-<STAMP>.sql "$S\db-<STAMP>.sql"
@@ -162,13 +182,13 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    If you see `FF FE`, the dump went through PowerShell somewhere — redo the
    step, never use `>`.
 
-4. **Record row counts** to compare after restore:
+3. **Record row counts** to compare after restore:
    ```powershell
    docker exec ite-calibration-postgres-1 psql -U ite -d ite -c "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY relname;" | Out-File "$S\rowcounts-old.txt"
    docker exec ite-calibration-postgres-1 psql -U ite -d ite -c "SELECT count(*), max(created_at) FROM calibration_runs;"
    ```
 
-5. **Tar the certificate volume** (same method as `backup-windows.ps1` — runs
+4. **Tar the certificate volume** (same method as `backup-windows.ps1` — runs
    inside alpine, no Windows encoding involved):
    ```powershell
    $SFwd = $S.Replace("\", "/")
@@ -177,17 +197,18 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    Get-Content "$S\volume-stats-old.txt"
    ```
 
-6. **Copy secrets and the whole repo folder**:
+5. **Copy the old `.env` for reference** (not restored verbatim — see
+   section 3 — but useful to have the old `ITE_ALLOWED_ORIGINS`/DB name on
+   hand while configuring the new one):
    ```powershell
-   Copy-Item C:\Calibration\deploy-package\.env "$S\dot-env-<STAMP>.txt"
-   robocopy C:\Calibration "$S\Calibration" /E /COPY:DAT /R:2 /W:2 /XD node_modules .venv
+   Copy-Item C:\Calibration\deploy-package\.env "$S\dot-env-<STAMP>-reference.txt"
    ```
    Optional, last 30 days of daily backups:
    ```powershell
    robocopy C:\ite-calibration-backups "$S\old-daily-backups" /E /R:2 /W:2
    ```
 
-7. **Hash everything, then copy to at least two separate transfer media, and
+6. **Hash everything, then copy to at least two separate transfer media, and
    re-verify each independently.** With no fallback and no re-capture, a
    single USB drive that fails or gets lost is a total data-loss event —
    don't rely on one copy.
@@ -200,7 +221,7 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    PC, before you consider the capture done — this is your last chance to
    redo it if a copy failed.
 
-8. **This is the real thing, not a rehearsal, once you're past step 2a
+7. **This is the real thing, not a rehearsal, once you're past step 2a
    (below) and satisfied.** There is no "bring the old app back up and
    recapture later" — once the old PC leaves, this bundle is what the new PC
    will run forever. If this capture is a rehearsal (see the timing note in
@@ -209,35 +230,52 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
 
 ## 2a. Prove the bundle actually restores — before the old PC is unreachable
 
-This is the step that replaces "we can always go back and check." Do it on
-any spare Windows machine with Docker Desktop (a spare laptop is fine — it
-doesn't need to be powerful, just needs to run Docker) **while the old PC is
-still available**, so if the restore fails you can fix the capture and redo
-it immediately instead of finding out after it's too late.
+This is the step that replaces "we can always go back and check." **This Mac
+(this machine, with Docker via Colima) can do this dry run** — you don't need
+a spare Windows box for it, because the point is to validate the DB dump +
+certificate volume restore procedure and the app build from git, not to
+byte-match production hardware. Do it **while the old PC is still
+available**, so if anything fails you can fix the capture and redo it
+immediately instead of finding out after it's too late.
 
-1. Copy one of the two bundle copies from step 2.7 onto the spare machine.
-2. Run all of section 3 ("On the new PC: restore") against it, in full,
-   including the row-count comparison (3.6), volume file-count comparison
-   (3.7), and the browser smoke test (3.9) — log in, open a run, download a
-   `.docx`, open the file.
+One caveat: this Mac is `arm64`; the production Windows PC is `amd64`.
+`docker build` produces images for whatever platform it's building on, so a
+dry-run build here doesn't prove the Windows build will succeed — it proves
+the **Dockerfiles, dependencies, and restore steps are correct**, which is
+most of the risk. If you want the platform itself covered too, either add
+`docker buildx build --platform linux/amd64 ...` here (slower, emulated,
+but a real cross-check) or treat the actual new-PC build in section 3 as
+the first true build for that platform and budget a bit of slack for
+dependency surprises Docker Hub/PyPI/npm might raise on a fresh machine.
+
+1. Copy one of the two bundle copies from step 2.6 onto this Mac (or wherever
+   you're doing the dry run).
+2. Check out the tagged commit from step 0.2 in a scratch location and run
+   all of section 3 ("On the new PC: restore") against it, in full, including
+   the build, the row-count comparison (3.7), volume file-count comparison
+   (3.8), and the smoke test (3.10) — log in, open a run, download a `.docx`,
+   open the file.
 3. Only once this dry run passes cleanly is the capture considered validated.
    If anything fails, go back to section 2, fix it, and redo the capture (you
    still have the old PC at this point — that's the whole reason this step
    exists).
-4. Wipe or reset the spare machine's containers/volumes afterward
-   (`docker compose down -v` in the copied `deploy-package/`) so it doesn't
-   linger as a second, drifting copy of production data.
+4. Tear down afterward (`docker compose down -v` in the scratch checkout) so
+   it doesn't linger as a second, drifting copy of production data on this
+   machine.
 
-## 3. On the new PC: restore
+## 3. On the new PC: build fresh, then restore the data
 
-Do this manually rather than via `setup-windows.ps1` — its structure is right
-(images → postgres → DB → volume → up) but it restores the stale seed dump via
-a `Get-Content` pipe (encoding risk) and gives no chance to check image IDs
-between load and start. These steps fix both.
+If the new PC has **no reliable internet access** to pull base images and
+`pip`/`npm` dependencies during `docker build`, do the build step (3.4) on a
+connected machine instead (this Mac works, or any machine with internet and
+Docker), `docker save` the two resulting images, carry them over on the same
+transfer media as the DB/volume bundle, and `docker load` them on the new PC
+in place of step 3.4. Everything else below is unchanged either way.
 
 1. **Prerequisites:** Docker Desktop installed and running (WSL2 backend),
    `docker compose` v2, account in the `docker-users` group (needed for the
-   backup task later), `C:` drive file sharing enabled in Docker Desktop.
+   backup task later), `C:` drive file sharing enabled in Docker Desktop, and
+   (for the default path) internet access.
    ```powershell
    docker version
    docker compose version
@@ -252,41 +290,58 @@ between load and start. These steps fix both.
    Get-Content "$S\SHA256SUMS.txt"
    ```
 
-3. **Place the repo and restore `.env`:**
+3. **Clone the repo and check out the tagged commit** from step 0.2 — not
+   `main`, the specific tag, so what runs here is exactly what passed the dry
+   run in 2a:
    ```powershell
-   robocopy "$S\Calibration" C:\Calibration /E /R:2 /W:2
-   Copy-Item "$S\dot-env-<STAMP>.txt" C:\Calibration\deploy-package\.env -Force
-   Set-Location C:\Calibration\deploy-package
-   Select-String -Path .env -Pattern "changeme|dev-only-change-me"
+   git clone https://github.com/ib-biswas65/calibration.git C:\Calibration
+   Set-Location C:\Calibration
+   git checkout windows-migration-<STAMP>
    ```
-   Expected: no matches. **Do not regenerate `ITE_JWT_SECRET` or
-   `POSTGRES_PASSWORD`** — the password must match the dump's roles, and the
-   secret keeps outstanding invite/reset links valid. Edit only
-   `ITE_ALLOWED_ORIGINS` for the new machine's address (see section 4).
 
-4. **Load images and confirm IDs match** what you recorded on the old PC —
-   stop if they differ:
+4. **Build the images and tag them** the way `deploy-package/docker-compose.yml`
+   expects (`image:` references, not `build:`):
    ```powershell
-   docker load -i "$S\base-images-<STAMP>.tar"
-   docker load -i "$S\ite-images-<STAMP>.tar"
-   docker inspect --format "{{.Id}}" ite-calibration-api:latest ite-calibration-web:latest
-   Get-Content "$S\image-ids.txt"
+   docker build -t ite-calibration-api:latest apps\api
+   docker build -t ite-calibration-web:latest apps\web
+   docker pull postgres:16-alpine
+   docker pull nginx:1.27-alpine
    ```
-   Tag rollback copies immediately:
+   Tag a dated copy right away, so a future rebuild has something to roll
+   back to (the DEPLOYMENT.md habit, now established fresh on this machine):
    ```powershell
    docker tag ite-calibration-api:latest ite-calibration-api:migrated-<STAMP>
    docker tag ite-calibration-web:latest ite-calibration-web:migrated-<STAMP>
    ```
 
-5. **Start Postgres and wait for healthy:**
+5. **Set up `.env` with fresh secrets** — unlike the old plan, you don't need
+   to match the old PC's password or JWT secret, since this is a new Postgres
+   instance and the dump will be loaded into a role it creates:
+   ```powershell
+   Set-Location C:\Calibration\deploy-package
+   Copy-Item .env.example .env
+   python3 -c "import secrets; print(secrets.token_hex(32))"   # for ITE_JWT_SECRET
+   notepad .env
+   ```
+   Set a strong `POSTGRES_PASSWORD` (and match it into `ITE_DATABASE_URL`),
+   a fresh `ITE_JWT_SECRET`, and `ITE_ALLOWED_ORIGINS` for the new machine's
+   address (see section 4). Note: a fresh JWT secret invalidates any
+   outstanding password-reset/invite links from the old system — plan to
+   re-send those if any are pending.
+   ```powershell
+   Select-String -Path .env -Pattern "changeme|dev-only-change-me"
+   ```
+   Expected: no matches.
+
+6. **Start Postgres and wait for healthy:**
    ```powershell
    docker compose up -d postgres
    docker inspect --format "{{.State.Health.Status}}" ite-calibration-postgres-1
    ```
-   Repeat until `healthy`. This creates the `ite` role/DB from `.env`, which
-   is why the password must match the old one.
+   Repeat until `healthy`. This creates the `ite` role/DB using the fresh
+   password from step 3.5.
 
-6. **Restore the database** (again via `docker cp` + `psql -f`, no PowerShell
+7. **Restore the database** (again via `docker cp` + `psql -f`, no PowerShell
    text handling):
    ```powershell
    docker cp "$S\db-<STAMP>.sql" ite-calibration-postgres-1:/tmp/db.sql
@@ -305,7 +360,7 @@ between load and start. These steps fix both.
    docker exec ite-calibration-postgres-1 psql -U ite -d ite -c "SELECT batch_name FROM calibration_runs ORDER BY created_at DESC LIMIT 3;"
    ```
 
-7. **Restore the certificate volume:**
+8. **Restore the certificate volume:**
    ```powershell
    docker volume create ite-calibration_cal_data | Out-Null
    $SFwd = $S.Replace("\", "/")
@@ -315,7 +370,7 @@ between load and start. These steps fix both.
    ```
    File count must match; size within a few percent.
 
-8. **Start everything and verify:**
+9. **Start everything and verify:**
    ```powershell
    docker compose up -d
    docker ps --format "table {{.Names}}`t{{.Image}}`t{{.Status}}"
@@ -323,18 +378,19 @@ between load and start. These steps fix both.
    docker logs ite-calibration-api-1 --tail=40
    ```
    Expected: all four containers Up, api + postgres `(healthy)`, health
-   returns ok, and the API log shows alembic finding **nothing to migrate**
-   (same image → same schema already). If it applies migrations, you're not
-   running the same image — go back to step 3.4. Any run mid-`processing` at
-   freeze time is now reset to failed — expected.
+   returns ok. Unlike the old image-copy plan, alembic **will** apply
+   migrations here if the schema doesn't already match this build's models —
+   that's normal for a fresh build against a restored dump, not a red flag by
+   itself. Watch the log for actual errors, not just "applying migration X."
+   Any run mid-`processing` at freeze time is now reset to failed — expected.
 
-9. **Browser smoke test** from another PC on the LAN, using the real address
-   users will type: log in, open History, open a run, download a `.docx`,
-   open it. A login CORS/origin error means `ITE_ALLOWED_ORIGINS` doesn't
-   contain the URL exactly as typed (scheme + host + port, no trailing
-   slash) — fix `.env` then `docker compose up -d api`.
+10. **Browser smoke test** from another PC on the LAN, using the real address
+    users will type: log in, open History, open a run, download a `.docx`,
+    open it. A login CORS/origin error means `ITE_ALLOWED_ORIGINS` doesn't
+    contain the URL exactly as typed (scheme + host + port, no trailing
+    slash) — fix `.env` then `docker compose up -d api`.
 
-10. **Register the backup task and run it once:**
+11. **Register the backup task and run it once:**
     ```powershell
     powershell -ExecutionPolicy Bypass -File C:\Calibration\register-task.ps1
     powershell -ExecutionPolicy Bypass -File C:\Calibration\deploy-package\backup-windows.ps1
@@ -343,7 +399,7 @@ between load and start. These steps fix both.
     Edit the hardcoded path in `register-task.ps1` first if the repo isn't at
     `C:\Calibration`. Copy over old daily backups if you brought them.
 
-11. **Reboot test:** reboot the PC, wait 2 minutes, re-run step 3.8's checks.
+12. **Reboot test:** reboot the PC, wait 2 minutes, re-run step 3.9's checks.
 
 ## 4. Cutover plan
 
@@ -386,7 +442,7 @@ the bundle**, not reverting to a running old system. Concretely:
    PC's own disk.
 2. If the bundle itself turns out to be bad (missed in 2a, or a copy
    corrupted in transit), there is nothing to recover from except the second
-   transfer-medium copy made in step 2.7. This is the entire reason for
+   transfer-medium copy made in step 2.6. This is the entire reason for
    keeping two copies — verify both are readable *before* leaving the old
    PC's location, not after.
 3. Any calibration work done on the old PC between the final capture and its
@@ -400,21 +456,23 @@ the bundle**, not reverting to a running old system. Concretely:
 
 | Risk | How it shows up | Detect / prevent |
 |---|---|---|
-| Shipped image ≠ running image (tag moved after container start — the exact 2026-08-14 failure mode) | New API behaves like older code; alembic applies migrations on start; tz-naive comparison errors | Step 0.2 ID check before save; step 3.4 ID check after load; step 3.8 confirms no migrations run |
-| Dump mangled by PowerShell text encoding | Japanese text as mojibake, or psql failing on a UTF-16 file | Never pipe SQL through PowerShell; use `pg_dump -f`+`docker cp` (2.3) and `docker cp`+`psql -f` (3.6); `Format-Hex` check; batch_name spot check |
+| Building from an unreviewed/WIP commit instead of the tagged one | New PC runs unfinished refinement work, or misses a fix that was supposed to be included | Always build from the tag in step 0.2, never `main` directly; `git checkout windows-migration-<STAMP>` in 3.3 |
+| App schema/behavior doesn't match the restored data as cleanly as hoped (this is now a *new* app, not a byte-copy) | Alembic migration errors, or the app runs but behaves unexpectedly against old data shapes | This is exactly what the mandatory dry run (2a) exists to catch, before the old PC is gone |
+| New PC has no internet access for `docker build` | Build fails pulling base images or `pip`/`npm` packages | Confirm internet access ahead of time (open question below); fall back to building elsewhere and `docker save`/`load` (note at top of section 3) |
+| Dump mangled by PowerShell text encoding | Japanese text as mojibake, or psql failing on a UTF-16 file | Never pipe SQL through PowerShell; use `pg_dump -f`+`docker cp` (2.2) and `docker cp`+`psql -f` (3.7); `Format-Hex` check; batch_name spot check |
 | Data entered on old PC after the dump | New PC missing the latest runs | Freeze in 2.1; keep old stack stopped until verified; compare `count(*)`/`max(created_at)` |
 | Volume and DB out of sync (run mid-process at freeze) | Run rows with missing files or vice versa | Freeze api before both captures; expect that run reset to failed on first start |
-| `.env` regenerated instead of copied | Postgres auth failures; JWT secret change invalidates outstanding links | Copy the real file (2.6, 3.3); only edit `ITE_ALLOWED_ORIGINS` |
-| `ITE_ALLOWED_ORIGINS` doesn't match the URL typed | Login POST rejected by Origin middleware; GETs still work | Test from a second PC with the real URL (3.9); fix `.env`, `docker compose up -d api` |
-| Orphaned/misnamed volumes | Restored into `cal_data` instead of `ite-calibration_cal_data`; API sees empty data dir | Compose project name is `ite-calibration`; use exact names in 3.7; `docker volume ls` should show only `ite-calibration_pg_data` and `ite-calibration_cal_data` |
-| Postgres major version mismatch | Only matters for a raw `pg_data` copy — the SQL dump restores into any 16.x | Ship `postgres:16-alpine` in `base-images` tar (2.2) |
+| `.env` secrets weak or left as placeholders | Postgres auth failures; predictable JWT secret | `Select-String ... changeme` check in 3.5; generate a real random secret |
+| `ITE_ALLOWED_ORIGINS` doesn't match the URL typed | Login POST rejected by Origin middleware; GETs still work | Test from a second PC with the real URL (3.10); fix `.env`, `docker compose up -d api` |
+| Orphaned/misnamed volumes | Restored into `cal_data` instead of `ite-calibration_cal_data`; API sees empty data dir | Compose project name is `ite-calibration`; use exact names in 3.8; `docker volume ls` should show only `ite-calibration_pg_data` and `ite-calibration_cal_data` |
+| Postgres major version mismatch | Would only matter with a raw `pg_data` copy — the SQL dump restores into any 16.x | Pull `postgres:16-alpine` explicitly in 3.4, matching the version noted in 0.5 |
 | Docker Desktop differences | compose v1 absent (fine — v2 syntax used throughout), file sharing off, Hyper-V vs WSL2 | Step 3.1 checks |
 | Bind-mount path syntax | `docker run -v` with backslashes fails silently | Forward slashes as in both scripts |
-| `register-task.ps1` hardcoded path/permissions | Task runs but backup aborts | Same `C:\Calibration` path, account in `docker-users`, run once by hand (3.10) |
-| Bundle has a gap discovered only after the old PC is gone | Missing certs, wrong row counts, unusable image | Mandatory dry run on a spare machine (2a) while the old PC can still be recaptured from |
-| One transfer-medium copy is corrupt/lost | Only the second copy is usable, or nothing is | Two independent copies (2.7), both hash-verified before leaving the old PC's site |
+| `register-task.ps1` hardcoded path/permissions | Task runs but backup aborts | Same `C:\Calibration` path, account in `docker-users`, run once by hand (3.11) |
+| Bundle has a gap discovered only after the old PC is gone | Missing certs, wrong row counts, build/restore failure | Mandatory dry run (2a), doable right on this Mac, while the old PC can still be recaptured from |
+| One transfer-medium copy is corrupt/lost | Only the second copy is usable, or nothing is | Two independent copies (2.6), both hash-verified before leaving the old PC's site |
 | Data entered on old PC between final capture and its departure | Permanently missing from the new PC | Minimize the gap per the timing guidance in 0.7; accept this loss is real if the gap can't be closed |
-| Uncommitted source only on old disk | Lost once old PC is gone (not a runtime problem — images are self-contained) | `git status` in 0.3; whole-folder robocopy in 2.6 |
+| Uncommitted source only on old disk | Lost once old PC is gone | `git status` in 0.3 — port anything real into the refinement work before tagging in 0.2 |
 
 **Optional extra insurance** during the freeze (old PC, everything stopped) —
 a raw copy of the Postgres data directory, only useful if the SQL dump turns
@@ -428,26 +486,32 @@ docker compose start postgres
 ## Open questions
 
 Resolved: the old PC will be completely unreachable once it leaves (no
-remote access, no one on-site), and there's a multi-day gap between capture
-and the new PC's setup. The plan above (sections 2a and 5) is built around
-those two facts. Remaining questions:
+remote access, no one on-site); there's a multi-day gap between capture and
+the new PC's setup; the app is rebuilt fresh from a tagged git commit rather
+than shipped as exact images; and the dry run (2a) happens on this Mac, not a
+spare Windows box. Remaining questions:
 
-1. Is a spare Windows machine with Docker Desktop actually available for the
-   mandatory dry run (2a) before the old PC leaves? If not, this needs to be
-   sourced before migration day — the plan doesn't have a safe fallback if
-   this step can't happen.
-2. Will the new PC take over the old PC's IP/hostname (4.1), or does it need
+1. **Will the new PC have internet access** to `docker build`/`pip install`/
+   `npm install` during setup? If not, plan on building the images elsewhere
+   (this Mac, or any connected machine) and transferring them via
+   `docker save`/`load` instead (noted at the top of section 3).
+2. What's the actual scope of "refine the application" — which bug fixes,
+   which features, what ops cleanup, what UI redesign? This needs its own
+   scoping conversation before any of it is implemented; it isn't blocking
+   the DB/migration plan above, but it does need to land and be tagged
+   (step 0.2) before the new PC's build.
+3. Will the new PC take over the old PC's IP/hostname (4.1), or does it need
    a new address? How do lab users reach the app today?
-3. Exactly when does the old PC become unreachable relative to when you can
+4. Exactly when does the old PC become unreachable relative to when you can
    do the final capture — same day, or is there slack? This decides how much
    of the 0.7 timing guidance you can actually follow.
-4. Is the repo really at `C:\Calibration` on the old PC, and is `git status`
+5. Is the repo really at `C:\Calibration` on the old PC, and is `git status`
    clean there?
-5. Will the old PC still be used for real calibration work between the
+6. Will the old PC still be used for real calibration work between the
    rehearsal capture and the final capture? If yes, only the final capture
    (done as late as possible) can be trusted as complete.
-6. Should `backup-windows.ps1` be fixed to the byte-safe `pg_dump -f` +
+7. Should `backup-windows.ps1` be fixed to the byte-safe `pg_dump -f` +
    `docker cp` form as a follow-up, and should an existing daily backup file
    be checked for the UTF-16 signature first?
-7. Any plan to re-enable the GitHub Actions self-hosted runner on the new PC?
+8. Any plan to re-enable the GitHub Actions self-hosted runner on the new PC?
    (Recommended: no, not as part of this move.)
