@@ -174,10 +174,12 @@ New-Item -ItemType Directory -Path $S -Force | Out-Null
    docker exec ite-calibration-postgres-1 rm /tmp/db-<STAMP>.sql
    ```
    Sanity check — should start with `-- PostgreSQL database dump` and NOT show
-   `FF FE` (UTF-16 signature) at the head:
+   `FF FE` (UTF-16 signature) at the head. `Format-Hex -Count` doesn't exist
+   in Windows PowerShell 5.1 (the production PC's default shell) — pipe to
+   `Select-Object` instead:
    ```powershell
    Get-Content "$S\db-<STAMP>.sql" -TotalCount 5
-   Format-Hex "$S\db-<STAMP>.sql" -Count 4
+   Format-Hex "$S\db-<STAMP>.sql" | Select-Object -First 1
    ```
    If you see `FF FE`, the dump went through PowerShell somewhere — redo the
    step, never use `>`.
