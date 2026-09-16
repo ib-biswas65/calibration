@@ -13,12 +13,18 @@ def test_create_admin_inserts_user(engine, monkeypatch, postgres_url):
     db_session_mod._engine = None
     db_session_mod._SessionLocal = None
     runner = CliRunner()
-    result = runner.invoke(cli_app, [
-        "create-admin",
-        "--email", "boss@ite.local",
-        "--full-name", "Boss",
-        "--password", "hunter2-long-enough",
-    ])
+    result = runner.invoke(
+        cli_app,
+        [
+            "create-admin",
+            "--email",
+            "boss@ite.local",
+            "--full-name",
+            "Boss",
+            "--password",
+            "hunter2-long-enough",
+        ],
+    )
     assert result.exit_code == 0, result.output
     SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with SessionLocal() as s:
@@ -29,10 +35,16 @@ def test_create_admin_inserts_user(engine, monkeypatch, postgres_url):
 
 def test_create_admin_rejects_short_password():
     runner = CliRunner()
-    result = runner.invoke(cli_app, [
-        "create-admin",
-        "--email", "x@y.z",
-        "--full-name", "X",
-        "--password", "short",
-    ])
+    result = runner.invoke(
+        cli_app,
+        [
+            "create-admin",
+            "--email",
+            "x@y.z",
+            "--full-name",
+            "X",
+            "--password",
+            "short",
+        ],
+    )
     assert result.exit_code != 0

@@ -34,7 +34,9 @@ def _recover_stuck_runs() -> None:
             .where(CalibrationRun.status == "processing")
             .values(
                 status="failed",
-                failure_reason={"message": "Processing was interrupted by a server restart. Please retry."},
+                failure_reason={
+                    "message": "Processing was interrupted by a server restart. Please retry."
+                },
             )
         )
         if result.rowcount:

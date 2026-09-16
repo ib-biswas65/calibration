@@ -20,7 +20,9 @@ def viewer(db_session):
 
 
 def test_overview_empty(client, viewer):
-    client.post("/api/auth/login", json={"email": "viewer@example.com", "password": "strongpassword12"})
+    client.post(
+        "/api/auth/login", json={"email": "viewer@example.com", "password": "strongpassword12"}
+    )
     resp = client.get("/api/overview")
     assert resp.status_code == 200
     data = resp.json()

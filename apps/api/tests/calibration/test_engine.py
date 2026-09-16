@@ -17,8 +17,8 @@ _WIDE_START = datetime(1900, 1, 1)
 _WIDE_END = datetime(2999, 12, 31, 23, 59)
 _SETPOINTS = [
     SetpointWindow(target=-40.0, start=_WIDE_START, end=_WIDE_END),
-    SetpointWindow(target=5.0,   start=_WIDE_START, end=_WIDE_END),
-    SetpointWindow(target=40.0,  start=_WIDE_START, end=_WIDE_END),
+    SetpointWindow(target=5.0, start=_WIDE_START, end=_WIDE_END),
+    SetpointWindow(target=40.0, start=_WIDE_START, end=_WIDE_END),
 ]
 
 
@@ -40,9 +40,7 @@ def test_run_one_logger_produces_docx(workbook_xlsx, reference_csv, template_doc
     saved = Document(str(out_path))
     body_text = "\n".join(p.text for p in saved.paragraphs)
     assert "0000001999" in body_text
-    table_text = " ".join(
-        c.text for t in saved.tables for r in t.rows for c in r.cells
-    )
+    table_text = " ".join(c.text for t in saved.tables for r in t.rows for c in r.cells)
     assert "190124110099999" in table_text
 
 

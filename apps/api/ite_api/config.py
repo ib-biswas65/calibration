@@ -35,7 +35,7 @@ class Settings(BaseSettings):
             if self.jwt_secret == _DEV_JWT_SECRET:
                 errors.append(
                     "ITE_JWT_SECRET is still the dev default. "
-                    "Generate a strong secret: python3 -c \"import secrets; print(secrets.token_hex(32))\""
+                    'Generate a strong secret: python3 -c "import secrets; print(secrets.token_hex(32))"'
                 )
             if "changeme" in self.database_url or self.database_url == _DEV_DB_URL:
                 errors.append(

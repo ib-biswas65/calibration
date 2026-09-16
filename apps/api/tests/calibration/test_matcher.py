@@ -31,8 +31,10 @@ def test_find_reference_value_picks_closest_to_target():
 def test_find_reference_value_empty_window_returns_none():
     df = _df([(datetime(2026, 4, 14, 10, 0, 0), 5.0)])
     val, ts = find_reference_value(
-        df, target=5.0,
-        time_start=datetime(2026, 4, 13), time_end=datetime(2026, 4, 13, 12),
+        df,
+        target=5.0,
+        time_start=datetime(2026, 4, 13),
+        time_end=datetime(2026, 4, 13, 12),
     )
     assert val is None and ts is None
 
@@ -41,8 +43,10 @@ def test_find_ref_near_timestamp():
     base = datetime(2026, 4, 14, 10, 0, 0)
     df = _df([(base + timedelta(minutes=i), float(i)) for i in range(5)])
     val, ts = find_ref_near_timestamp(
-        df, cal_ts=base + timedelta(minutes=2, seconds=20),
-        time_start=base, time_end=base + timedelta(hours=1),
+        df,
+        cal_ts=base + timedelta(minutes=2, seconds=20),
+        time_start=base,
+        time_end=base + timedelta(hours=1),
     )
     assert ts == base + timedelta(minutes=2)
     assert val == 2.0

@@ -12,7 +12,9 @@ def _safe_name(original: str) -> str:
     return re.sub(r"[^\w.\-]", "_", name)[:200]
 
 
-def save_file(data: bytes, *, run_id: uuid.UUID, sub: str, original_name: str, data_dir: Path) -> tuple[Path, str]:
+def save_file(
+    data: bytes, *, run_id: uuid.UUID, sub: str, original_name: str, data_dir: Path
+) -> tuple[Path, str]:
     """Write `data` to <data_dir>/runs/<run_id>/<sub>/<uuid>__<safe_name>.
 
     Returns (stored_path, sha256_hex).

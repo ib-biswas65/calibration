@@ -60,19 +60,29 @@ def get_overview(
     due_cutoff = (now + timedelta(days=30)).date()
 
     total_loggers = db.scalar(select(func.count()).select_from(Logger)) or 0
-    due_30d = db.scalar(
-        select(func.count()).select_from(Logger).where(
-            Logger.next_due_at != None,  # noqa: E711
-            Logger.next_due_at >= today,
-            Logger.next_due_at <= due_cutoff,
+    due_30d = (
+        db.scalar(
+            select(func.count())
+            .select_from(Logger)
+            .where(
+                Logger.next_due_at != None,  # noqa: E711
+                Logger.next_due_at >= today,
+                Logger.next_due_at <= due_cutoff,
+            )
         )
-    ) or 0
-    overdue = db.scalar(
-        select(func.count()).select_from(Logger).where(
-            Logger.next_due_at != None,  # noqa: E711
-            Logger.next_due_at < today,
+        or 0
+    )
+    overdue = (
+        db.scalar(
+            select(func.count())
+            .select_from(Logger)
+            .where(
+                Logger.next_due_at != None,  # noqa: E711
+                Logger.next_due_at < today,
+            )
         )
-    ) or 0
+        or 0
+    )
 
     recent_runs_rows = db.scalars(
         select(CalibrationRun)
@@ -83,9 +93,9 @@ def get_overview(
 
     runs_30d = len(recent_runs_rows)
     all_results_30d = db.scalars(
-        select(LoggerResult).join(
-            CalibrationRun, LoggerResult.run_id == CalibrationRun.id
-        ).where(CalibrationRun.created_at >= cutoff_30d)
+        select(LoggerResult)
+        .join(CalibrationRun, LoggerResult.run_id == CalibrationRun.id)
+        .where(CalibrationRun.created_at >= cutoff_30d)
     ).all()
 
     pass_count = sum(1 for r in all_results_30d if r.verdict == "pass")
@@ -103,29 +113,42 @@ def get_overview(
         mix = {}
         for r in results:
             mix[r.verdict] = mix.get(r.verdict, 0) + 1
-        recent_run_out.append(RecentRun(
-            id=str(run.id),
-            batch_name=run.batch_name,
-            status=run.status,
-            created_at=run.created_at,
-            verdict_mix=mix,
-        ))
+        recent_run_out.append(
+            RecentRun(
+                id=str(run.id),
+                batch_name=run.batch_name,
+                status=run.status,
+                created_at=run.created_at,
+                verdict_mix=mix,
+            )
+        )
 
     due_soon_loggers = db.scalars(
         select(Logger)
-        .where(Logger.next_due_at != None, Logger.next_due_at >= today, Logger.next_due_at <= due_cutoff)  # noqa: E711
+        .where(
+            Logger.next_due_at != None,
+            Logger.next_due_at >= today,
+            Logger.next_due_at <= due_cutoff,
+        )  # noqa: E711
         .order_by(Logger.next_due_at)
         .limit(5)
     ).all()
 
     return OverviewResponse(
         fleet=FleetStats(total_loggers=total_loggers, due_30d=due_30d, overdue=overdue),
-        last_30d=Last30dStats(runs=runs_30d, pass_rate=round(pass_rate * 100, 1) if pass_rate is not None else None,
-                               fail_count=fail_count, adjusted_count=adj_count),
+        last_30d=Last30dStats(
+            runs=runs_30d,
+            pass_rate=round(pass_rate * 100, 1) if pass_rate is not None else None,
+            fail_count=fail_count,
+            adjusted_count=adj_count,
+        ),
         recent_runs=recent_run_out,
         due_soon=[
-            DueSoon(logger_id=str(lg.id), serial_no=lg.serial_no,
-                    next_due_at=lg.next_due_at.isoformat() if lg.next_due_at else None)
+            DueSoon(
+                logger_id=str(lg.id),
+                serial_no=lg.serial_no,
+                next_due_at=lg.next_due_at.isoformat() if lg.next_due_at else None,
+            )
             for lg in due_soon_loggers
         ],
     )

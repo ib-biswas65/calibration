@@ -110,9 +110,7 @@ def _set_cell(cell, text: str) -> None:
     cell.text = text
 
 
-def fill_results_table(
-    doc, ordered_values: list[tuple[float | None, float | None]]
-) -> None:
+def fill_results_table(doc, ordered_values: list[tuple[float | None, float | None]]) -> None:
     """Fill the calibration results table.
 
     `ordered_values` is a list of (standard, actual) tuples, one per data row,

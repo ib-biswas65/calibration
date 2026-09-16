@@ -25,19 +25,20 @@ def test_replace_text_everywhere_handles_serial_in_table(template_docx, tmp_path
     doc.save(str(out))
     saved = Document(str(out))
     # Serial lives in table 0
-    table_text = " ".join(
-        c.text for t in saved.tables for r in t.rows for c in r.cells
-    )
+    table_text = " ".join(c.text for t in saved.tables for r in t.rows for c in r.cells)
     assert "190124110099999" in table_text
     assert "190124110002417" not in table_text
 
 
 def test_replace_text_everywhere_handles_dates(template_docx, tmp_path):
     doc = Document(str(template_docx))
-    replace_text_everywhere(doc, {
-        "2026年3月4日": "2026年4月14日",
-        "2026年3月6日": "2026年4月15日",
-    })
+    replace_text_everywhere(
+        doc,
+        {
+            "2026年3月4日": "2026年4月14日",
+            "2026年3月6日": "2026年4月15日",
+        },
+    )
     out = tmp_path / "out.docx"
     doc.save(str(out))
     saved = Document(str(out))
@@ -59,11 +60,14 @@ def test_find_results_table_locates_the_setpoint_table(template_docx):
 def test_fill_results_table_writes_each_row(template_docx, tmp_path):
     doc = Document(str(template_docx))
     # Pick float values that have unambiguous 1-decimal representations.
-    fill_results_table(doc, [
-        (-40.2, -40.1),
-        (5.1, 5.3),
-        (39.9, 40.2),
-    ])
+    fill_results_table(
+        doc,
+        [
+            (-40.2, -40.1),
+            (5.1, 5.3),
+            (39.9, 40.2),
+        ],
+    )
     out = tmp_path / "out.docx"
     doc.save(str(out))
     saved = Document(str(out))

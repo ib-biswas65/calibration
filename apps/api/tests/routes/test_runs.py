@@ -24,7 +24,9 @@ def engineer(db_session):
 @pytest.fixture()
 def authed_client(client, engineer, tmp_path, monkeypatch):
     monkeypatch.setenv("ITE_DATA_DIR", str(tmp_path))
-    resp = client.post("/api/auth/login", json={"email": "eng@example.com", "password": "strongpassword12"})
+    resp = client.post(
+        "/api/auth/login", json={"email": "eng@example.com", "password": "strongpassword12"}
+    )
     assert resp.status_code == 204
     return client
 
@@ -37,8 +39,8 @@ _RUN_BODY = {
     "threshold_c": 0.5,
     "setpoints": [
         {"target_c": -40.0, "start_at": "1900-01-01T00:00:00Z", "end_at": "2999-12-31T23:59:00Z"},
-        {"target_c": 5.0,   "start_at": "1900-01-01T00:00:00Z", "end_at": "2999-12-31T23:59:00Z"},
-        {"target_c": 40.0,  "start_at": "1900-01-01T00:00:00Z", "end_at": "2999-12-31T23:59:00Z"},
+        {"target_c": 5.0, "start_at": "1900-01-01T00:00:00Z", "end_at": "2999-12-31T23:59:00Z"},
+        {"target_c": 40.0, "start_at": "1900-01-01T00:00:00Z", "end_at": "2999-12-31T23:59:00Z"},
     ],
     "start_cert_no": "0000001800",
     "cert_width": 10,
@@ -86,6 +88,7 @@ def test_upload_reference_file(authed_client):
 
 def test_upload_calibration_file(authed_client):
     from pathlib import Path
+
     wb_path = Path(__file__).parent.parent / "fixtures" / "calibration" / "workbook.xlsx"
     if not wb_path.exists():
         pytest.skip("workbook.xlsx fixture not found")
@@ -93,7 +96,13 @@ def test_upload_calibration_file(authed_client):
     with open(wb_path, "rb") as f:
         resp = authed_client.post(
             f"/api/runs/{run_id}/calibration",
-            files={"file": ("workbook.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            files={
+                "file": (
+                    "workbook.xlsx",
+                    f,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
         )
     assert resp.status_code == 201
     data = resp.json()

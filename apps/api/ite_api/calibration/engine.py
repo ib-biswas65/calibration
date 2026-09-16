@@ -24,10 +24,10 @@ class SetpointWindow:
 
 @dataclass(frozen=True)
 class RunConfig:
-    cert_no: str           # new cert number to write
-    serial: str            # new logger serial to write
-    test_date_jp: str      # e.g. "2026年4月14日"
-    doc_date_jp: str       # e.g. "2026年4月15日"
+    cert_no: str  # new cert number to write
+    serial: str  # new logger serial to write
+    test_date_jp: str  # e.g. "2026年4月14日"
+    doc_date_jp: str  # e.g. "2026年4月15日"
     template_path: Path
     output_dir: Path
     setpoints: list[SetpointWindow]
@@ -43,18 +43,19 @@ def run_one_logger(cfg: RunConfig, *, sheet_name: str, wb, ref_df) -> Path:
     cal_df = load_calibration_sheet(wb, sheet_name)
     ordered_values: list[tuple[float | None, float | None]] = []
     for sp in cfg.setpoints:
-        ref_v, cal_v, _ = find_values_for_target(
-            cal_df, ref_df, sp.target, sp.start, sp.end
-        )
+        ref_v, cal_v, _ = find_values_for_target(cal_df, ref_df, sp.target, sp.start, sp.end)
         ordered_values.append((ref_v, cal_v))
 
     doc = Document(str(cfg.template_path))
-    replace_text_everywhere(doc, {
-        cfg.template_cert_no: cfg.cert_no,
-        cfg.template_serial: cfg.serial,
-        cfg.template_test_date: cfg.test_date_jp,
-        cfg.template_doc_date: cfg.doc_date_jp,
-    })
+    replace_text_everywhere(
+        doc,
+        {
+            cfg.template_cert_no: cfg.cert_no,
+            cfg.template_serial: cfg.serial,
+            cfg.template_test_date: cfg.test_date_jp,
+            cfg.template_doc_date: cfg.doc_date_jp,
+        },
+    )
     fill_results_table(doc, ordered_values)
 
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
@@ -70,8 +71,8 @@ class BatchConfig:
     test_date_jp: str
     doc_date_jp: str
     template_path: Path
-    calibration_xlsxs: list[Path]   # one or more workbooks; sheets concatenated in order
-    reference_csvs: list[Path]      # one or more reference CSVs; rows concatenated
+    calibration_xlsxs: list[Path]  # one or more workbooks; sheets concatenated in order
+    reference_csvs: list[Path]  # one or more reference CSVs; rows concatenated
     output_dir: Path
     setpoints: list[SetpointWindow]
     serial_from_sheet: bool = True

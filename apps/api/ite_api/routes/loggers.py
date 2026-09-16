@@ -91,8 +91,12 @@ def get_logger(
     lg = db.get(Logger, logger_id)
     if lg is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="logger not found")
-    results = db.scalars(select(LoggerResult).where(LoggerResult.logger_id == logger_id)
-                         .order_by(LoggerResult.created_at.desc()).limit(20)).all()
+    results = db.scalars(
+        select(LoggerResult)
+        .where(LoggerResult.logger_id == logger_id)
+        .order_by(LoggerResult.created_at.desc())
+        .limit(20)
+    ).all()
     return {
         "id": str(lg.id),
         "serial_no": lg.serial_no,
@@ -104,7 +108,9 @@ def get_logger(
                 "result_id": str(r.id),
                 "run_id": str(r.run_id),
                 "verdict": r.verdict,
-                "max_deviation_c": float(r.max_deviation_c) if r.max_deviation_c is not None else None,
+                "max_deviation_c": float(r.max_deviation_c)
+                if r.max_deviation_c is not None
+                else None,
                 "cert_no": r.cert_no,
                 "created_at": r.created_at.isoformat(),
             }

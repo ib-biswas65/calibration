@@ -50,10 +50,7 @@ def test_load_ref_auto_raises_when_every_line_fails_to_parse(tmp_path):
     DataFrame. An empty-but-successful load previously flowed straight into the
     matcher as "no reference data", masking a real malformed-file problem."""
     p = tmp_path / "bad.csv"
-    p.write_text(
-        "2026/04/14 10:30:00,notanumber\n"
-        "2026/04/14 10:31:00,alsobad\n"
-    )
+    p.write_text("2026/04/14 10:30:00,notanumber\n2026/04/14 10:31:00,alsobad\n")
     assert detect_format(p) == "mc3000"
     with pytest.raises(ValueError, match="no valid"):
         load_ref_auto(p)

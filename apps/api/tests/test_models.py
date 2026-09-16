@@ -4,6 +4,7 @@ from ite_api.db.models import Session as UserSession
 
 def test_models_register_on_metadata():
     from ite_api.db.base import Base
+
     names = set(Base.metadata.tables.keys())
     assert {"users", "sessions", "password_resets", "audit_log"} <= names
 

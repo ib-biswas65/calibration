@@ -77,11 +77,13 @@ def login(
 
     s = get_settings()
     refresh = create_refresh_token()
-    db.add(UserSession(
-        user_id=user.id,
-        token_hash=hash_refresh_token(refresh),
-        expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
-    ))
+    db.add(
+        UserSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh),
+            expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
+        )
+    )
     user.last_login_at = datetime.now(UTC)
     write_audit(db, user_id=user.id, action="login", detail={"email": email})
     db.commit()
@@ -112,11 +114,7 @@ def logout(
     now = datetime.now(UTC)
 
     if ite_rt:
-        sess = (
-            db.query(UserSession)
-            .filter_by(token_hash=hash_refresh_token(ite_rt))
-            .one_or_none()
-        )
+        sess = db.query(UserSession).filter_by(token_hash=hash_refresh_token(ite_rt)).one_or_none()
         if sess and sess.revoked_at is None:
             if all_sessions:
                 # Revoke every active session for this user across all devices.
@@ -148,7 +146,9 @@ def reset_password(
     db: Session = Depends(get_session),
 ) -> Response:
     if len(body.password) < 12:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters"
+        )
 
     token_hash = hash_refresh_token(body.token)
     pr = db.scalars(select(PasswordReset).where(PasswordReset.token_hash == token_hash)).first()
@@ -170,11 +170,13 @@ def reset_password(
 
     s = get_settings()
     refresh = create_refresh_token()
-    db.add(UserSession(
-        user_id=user.id,
-        token_hash=hash_refresh_token(refresh),
-        expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
-    ))
+    db.add(
+        UserSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh),
+            expires_at=datetime.now(UTC) + timedelta(days=s.refresh_token_days),
+        )
+    )
     db.commit()
 
     access = create_access_token(user_id=str(user.id), role=user.role)
@@ -231,7 +233,9 @@ def change_password(
     user: User = current_user,
 ) -> Response:
     if len(body.new_password) < 12:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password must be at least 12 characters"
+        )
     if not verify_password(body.current_password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="current password is incorrect")
     user.password_hash = hash_password(body.new_password)

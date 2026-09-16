@@ -46,11 +46,19 @@ def list_users(
     admin: User = require_role("admin"),
 ):
     users = db.scalars(select(User).order_by(User.created_at)).all()
-    return [UserOut(
-        id=str(u.id), email=u.email, full_name=u.full_name,
-        role=u.role, disabled=u.disabled, pending=u.pending,
-        created_at=u.created_at, last_login_at=u.last_login_at,
-    ) for u in users]
+    return [
+        UserOut(
+            id=str(u.id),
+            email=u.email,
+            full_name=u.full_name,
+            role=u.role,
+            disabled=u.disabled,
+            pending=u.pending,
+            created_at=u.created_at,
+            last_login_at=u.last_login_at,
+        )
+        for u in users
+    ]
 
 
 @router.get("/pending", response_model=list[UserOut])
@@ -60,11 +68,19 @@ def list_pending_users(
 ):
     """Return only users awaiting approval."""
     users = db.scalars(select(User).where(User.pending == True).order_by(User.created_at)).all()  # noqa: E712
-    return [UserOut(
-        id=str(u.id), email=u.email, full_name=u.full_name,
-        role=u.role, disabled=u.disabled, pending=u.pending,
-        created_at=u.created_at, last_login_at=u.last_login_at,
-    ) for u in users]
+    return [
+        UserOut(
+            id=str(u.id),
+            email=u.email,
+            full_name=u.full_name,
+            role=u.role,
+            disabled=u.disabled,
+            pending=u.pending,
+            created_at=u.created_at,
+            last_login_at=u.last_login_at,
+        )
+        for u in users
+    ]
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -120,7 +136,9 @@ def approve_user(
 
     user.pending = False
     db.commit()
-    write_audit(db, user_id=admin.id, action="user.approved", detail={"target_user_id": str(user_id)})
+    write_audit(
+        db, user_id=admin.id, action="user.approved", detail={"target_user_id": str(user_id)}
+    )
 
 
 @router.post("/{user_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
@@ -154,17 +172,24 @@ def resend_invite(
     if user.disabled:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="user is disabled")
     if user.last_login_at is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="user has already logged in — use password reset instead")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="user has already logged in — use password reset instead",
+        )
 
     raw_token = create_refresh_token()
     expires = datetime.now(UTC) + timedelta(days=7)
-    db.add(PasswordReset(
-        user_id=user.id,
-        token_hash=hash_refresh_token(raw_token),
-        expires_at=expires,
-    ))
+    db.add(
+        PasswordReset(
+            user_id=user.id,
+            token_hash=hash_refresh_token(raw_token),
+            expires_at=expires,
+        )
+    )
     db.commit()
-    write_audit(db, user_id=admin.id, action="user.invite_resent", detail={"target_user_id": str(user_id)})
+    write_audit(
+        db, user_id=admin.id, action="user.invite_resent", detail={"target_user_id": str(user_id)}
+    )
 
     setup_url = f"/reset-password?token={raw_token}"
     return {"setup_url": setup_url}
@@ -184,14 +209,23 @@ def patch_user(
         if body.role not in ("admin", "engineer", "viewer"):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid role")
         user.role = body.role
-        write_audit(db, user_id=admin.id, action="user.role_changed",
-                    detail={"target_user_id": str(user_id), "new_role": body.role})
+        write_audit(
+            db,
+            user_id=admin.id,
+            action="user.role_changed",
+            detail={"target_user_id": str(user_id), "new_role": body.role},
+        )
     if body.disabled is not None:
         user.disabled = body.disabled
     db.commit()
     db.refresh(user)
     return UserOut(
-        id=str(user.id), email=user.email, full_name=user.full_name,
-        role=user.role, disabled=user.disabled, pending=user.pending,
-        created_at=user.created_at, last_login_at=user.last_login_at,
+        id=str(user.id),
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        disabled=user.disabled,
+        pending=user.pending,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
     )

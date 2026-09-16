@@ -17,8 +17,8 @@ def _init() -> None:
             future=True,
             pool_size=5,
             max_overflow=10,
-            pool_pre_ping=True,   # discard stale connections (important after idle/restart)
-            pool_recycle=1800,    # recycle connections after 30 min
+            pool_pre_ping=True,  # discard stale connections (important after idle/restart)
+            pool_recycle=1800,  # recycle connections after 30 min
             pool_timeout=30,
             # Force UTF-8 on every connection — prevents multi-byte characters
             # (Japanese, special punctuation, etc.) from being silently corrupted to '?'.

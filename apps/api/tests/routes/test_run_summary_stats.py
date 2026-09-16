@@ -34,17 +34,34 @@ def _make_run(db_session, **overrides):
 
 def test_partial_run_pass_rate_excludes_invalid_from_denominator(db_session):
     run = _make_run(db_session)
-    db_session.add_all([
-        LoggerResult(run_id=run.id, sheet_name="A", verdict="pass", max_deviation_c=0.1, per_setpoint=[]),
-        LoggerResult(run_id=run.id, sheet_name="B", verdict="fail", max_deviation_c=0.8, per_setpoint=[]),
-        LoggerResult(run_id=run.id, sheet_name="C", verdict="invalid", max_deviation_c=None, per_setpoint=[],
-                     failure_reason="no match"),
-    ])
+    db_session.add_all(
+        [
+            LoggerResult(
+                run_id=run.id, sheet_name="A", verdict="pass", max_deviation_c=0.1, per_setpoint=[]
+            ),
+            LoggerResult(
+                run_id=run.id, sheet_name="B", verdict="fail", max_deviation_c=0.8, per_setpoint=[]
+            ),
+            LoggerResult(
+                run_id=run.id,
+                sheet_name="C",
+                verdict="invalid",
+                max_deviation_c=None,
+                per_setpoint=[],
+                failure_reason="no match",
+            ),
+        ]
+    )
     db_session.commit()
 
     rows = list_runs(
-        status_filter=None, from_date=None, to_date=None, q=None, limit=50,
-        db=db_session, user=None,
+        status_filter=None,
+        from_date=None,
+        to_date=None,
+        q=None,
+        limit=50,
+        db=db_session,
+        user=None,
     )
     row = next(r for r in rows if r.id == run.id)
 

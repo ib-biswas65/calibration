@@ -44,10 +44,7 @@ def _make_run(db_session, **overrides):
 
 def _write_reference_csv(tmp_path: Path) -> Path:
     p = tmp_path / "ref.csv"
-    p.write_text(
-        "2026/04/14 09:01:00,5.0\n"
-        "2026/04/14 09:02:00,5.05\n"
-    )
+    p.write_text("2026/04/14 09:01:00,5.0\n2026/04/14 09:02:00,5.05\n")
     return p
 
 

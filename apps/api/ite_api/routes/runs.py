@@ -57,6 +57,7 @@ _CAL_MAX_BYTES = 50 * 1024 * 1024
 
 # ── Schemas ────────────────────────────────────────────────────────────────
 
+
 class SetpointIn(BaseModel):
     target_c: float
     start_at: datetime
@@ -156,6 +157,7 @@ class StatusResponse(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+
 def _get_run_or_404(run_id: uuid.UUID, db: Session) -> CalibrationRun:
     run = db.get(CalibrationRun, run_id)
     if run is None:
@@ -168,6 +170,7 @@ def _settings(request: Request) -> Settings:
 
 
 # ── Routes ────────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=list[RunSummary])
 def list_runs(
@@ -225,16 +228,22 @@ def list_runs(
     result = []
     for run, logger_count, pass_rate, max_dev in rows:
         is_complete = run.status in ("complete", "partial")
-        result.append(RunSummary(
-            id=run.id,
-            batch_name=run.batch_name,
-            status=run.status,
-            created_at=run.created_at,
-            completed_at=run.completed_at,
-            logger_count=int(logger_count) if (is_complete and logger_count is not None) else None,
-            pass_rate=round(float(pass_rate), 1) if (is_complete and pass_rate is not None) else None,
-            max_deviation_c=float(max_dev) if (is_complete and max_dev is not None) else None,
-        ))
+        result.append(
+            RunSummary(
+                id=run.id,
+                batch_name=run.batch_name,
+                status=run.status,
+                created_at=run.created_at,
+                completed_at=run.completed_at,
+                logger_count=int(logger_count)
+                if (is_complete and logger_count is not None)
+                else None,
+                pass_rate=round(float(pass_rate), 1)
+                if (is_complete and pass_rate is not None)
+                else None,
+                max_deviation_c=float(max_dev) if (is_complete and max_dev is not None) else None,
+            )
+        )
     return result
 
 
@@ -314,8 +323,13 @@ def rename_run(
     run.batch_name = body.batch_name
     db.commit()
     db.refresh(run)
-    write_audit(db, user_id=user.id, run_id=run.id, action="run.renamed",
-                detail={"old_name": old_name, "new_name": body.batch_name})
+    write_audit(
+        db,
+        user_id=user.id,
+        run_id=run.id,
+        action="run.renamed",
+        detail={"old_name": old_name, "new_name": body.batch_name},
+    )
     return _run_detail(run, db)
 
 
@@ -329,7 +343,9 @@ def delete_run(
 
     # Collect all on-disk paths before the DB cascade removes the records.
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
-    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)).first()
+    cal_file = db.scalars(
+        select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)
+    ).first()
     results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all()
 
     write_audit(db, user_id=user.id, run_id=run.id, action="run.deleted")
@@ -358,6 +374,7 @@ def delete_run(
     try:
         if run_dir.exists():
             import shutil
+
             shutil.rmtree(run_dir, ignore_errors=True)
     except OSError as e:
         _log.warning("Could not remove run directory %s: %s", run_dir, e)
@@ -365,7 +382,10 @@ def delete_run(
 
 # ── File uploads ──────────────────────────────────────────────────────────
 
-@router.post("/{run_id}/references", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{run_id}/references", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED
+)
 async def upload_reference(
     run_id: uuid.UUID,
     file: UploadFile,
@@ -378,11 +398,16 @@ async def upload_reference(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="run is not in draft state")
     data = await file.read()
     if len(data) > _REF_MAX_BYTES:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="reference file too large (max 10 MB)")
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="reference file too large (max 10 MB)"
+        )
     settings = get_settings()
     stored, sha256 = save_file(
-        data, run_id=run_id, sub="references",
-        original_name=file.filename or "reference.csv", data_dir=settings.data_dir
+        data,
+        run_id=run_id,
+        sub="references",
+        original_name=file.filename or "reference.csv",
+        data_dir=settings.data_dir,
     )
     ref_file = RunReferenceFile(
         run_id=run_id,
@@ -393,10 +418,16 @@ async def upload_reference(
     db.add(ref_file)
     db.commit()
     db.refresh(ref_file)
-    return FileUploadResponse(file_id=ref_file.id, sha256=sha256, original_name=ref_file.original_name)
+    return FileUploadResponse(
+        file_id=ref_file.id, sha256=sha256, original_name=ref_file.original_name
+    )
 
 
-@router.post("/{run_id}/calibration", response_model=CalibrationUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{run_id}/calibration",
+    response_model=CalibrationUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_calibration(
     run_id: uuid.UUID,
     file: UploadFile,
@@ -408,20 +439,29 @@ async def upload_calibration(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="run is not in draft state")
     data = await file.read()
     if len(data) > _CAL_MAX_BYTES:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="calibration file too large (max 50 MB)")
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="calibration file too large (max 50 MB)",
+        )
     settings = get_settings()
     stored, sha256 = save_file(
-        data, run_id=run_id, sub="calibration",
-        original_name=file.filename or "workbook.xlsx", data_dir=settings.data_dir
+        data,
+        run_id=run_id,
+        sub="calibration",
+        original_name=file.filename or "workbook.xlsx",
+        data_dir=settings.data_dir,
     )
     # Detect sheet names
     import openpyxl
+
     wb_obj = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     sheet_names = wb_obj.sheetnames
     wb_obj.close()
 
     # Replace any existing calibration file record
-    existing = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run_id)).first()
+    existing = db.scalars(
+        select(RunCalibrationFile).where(RunCalibrationFile.run_id == run_id)
+    ).first()
     if existing:
         db.delete(existing)
         db.flush()
@@ -437,8 +477,10 @@ async def upload_calibration(
     db.commit()
     db.refresh(cal_file)
     return CalibrationUploadResponse(
-        file_id=cal_file.id, sha256=sha256,
-        original_name=cal_file.original_name, sheet_names=sheet_names
+        file_id=cal_file.id,
+        sha256=sha256,
+        original_name=cal_file.original_name,
+        sheet_names=sheet_names,
     )
 
 
@@ -465,6 +507,7 @@ def delete_file(
 
 # ── Processing ────────────────────────────────────────────────────────────
 
+
 @router.post("/{run_id}/process", status_code=status.HTTP_202_ACCEPTED)
 def process_run(
     run_id: uuid.UUID,
@@ -475,12 +518,18 @@ def process_run(
     _get_run_or_404(run_id, db)
 
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run_id)).all()
-    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run_id)).first()
+    cal_file = db.scalars(
+        select(RunCalibrationFile).where(RunCalibrationFile.run_id == run_id)
+    ).first()
 
     if not ref_files:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no reference files uploaded")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no reference files uploaded"
+        )
     if cal_file is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no calibration workbook uploaded")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no calibration workbook uploaded"
+        )
 
     # Atomic transition: only one concurrent request can win this UPDATE.
     # If two requests race, only one gets rowcount=1; the other hits the 409.
@@ -495,7 +544,9 @@ def process_run(
     if not result.fetchone():
         run = db.get(CalibrationRun, run_id)
         current = run.status if run else "unknown"
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"run status is '{current}', cannot process")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail=f"run status is '{current}', cannot process"
+        )
 
     write_audit(db, user_id=user.id, run_id=run_id, action="run.processing_started")
 
@@ -524,6 +575,7 @@ def get_status(
 
 
 # ── Results & certificates ────────────────────────────────────────────────
+
 
 @router.get("/{run_id}/results")
 def list_results(
@@ -560,11 +612,19 @@ def download_certificate(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="result not found")
     if not result.cert_path or not Path(result.cert_path).exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="certificate file not found")
-    write_audit(db, user_id=user.id, run_id=run_id, action="cert.downloaded",
-                detail={"result_id": str(result_id), "cert_no": result.cert_no})
+    write_audit(
+        db,
+        user_id=user.id,
+        run_id=run_id,
+        action="cert.downloaded",
+        detail={"result_id": str(result_id), "cert_no": result.cert_no},
+    )
     filename = Path(result.cert_path).name
-    return FileResponse(result.cert_path, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    return FileResponse(
+        result.cert_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{run_id}/audit")
@@ -587,7 +647,9 @@ def get_audit(
             u = user_cache[e.user_id]
             if u:
                 actor = {"id": str(u.id), "full_name": u.full_name, "email": u.email}
-        result.append({"action": e.action, "at": e.at.isoformat(), "detail": e.detail, "user": actor})
+        result.append(
+            {"action": e.action, "at": e.at.isoformat(), "detail": e.detail, "user": actor}
+        )
     return result
 
 
@@ -607,7 +669,9 @@ def patch_dates(
     """Update test date and/or cert date on a completed run, then regenerate all certificates."""
     run = _get_run_or_404(run_id, db)
     if run.status != "complete":
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="only complete runs can have dates edited")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="only complete runs can have dates edited"
+        )
     if not body.test_date_jp and not body.doc_date_jp:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no date provided")
 
@@ -633,6 +697,7 @@ def patch_dates(
 
 def _regenerate_all_certificates(run_id: uuid.UUID, settings) -> None:
     from ite_api.db.session import _SessionLocal
+
     assert _SessionLocal is not None
     with _SessionLocal() as db:
         run = db.get(CalibrationRun, run_id)
@@ -643,7 +708,9 @@ def _regenerate_all_certificates(run_id: uuid.UUID, settings) -> None:
             try:
                 _regenerate_certificate(run, result, settings, db)
             except Exception:
-                _log.exception("Failed to regenerate cert for result %s during date update", result.id)
+                _log.exception(
+                    "Failed to regenerate cert for result %s during date update", result.id
+                )
         db.commit()
 
 
@@ -687,11 +754,14 @@ def find_by_cert_no(
         "sheet_name": result.sheet_name,
         "verdict": result.verdict,
         "batch_name": run.batch_name if run else None,
-        "certificate_date": run.certificate_date.isoformat() if run and run.certificate_date else None,
+        "certificate_date": run.certificate_date.isoformat()
+        if run and run.certificate_date
+        else None,
     }
 
 
 # ── Background task ───────────────────────────────────────────────────────
+
 
 def _run_processing_task(
     *,
@@ -701,6 +771,7 @@ def _run_processing_task(
     settings: Settings,
 ) -> None:
     from ite_api.db.session import _SessionLocal
+
     assert _SessionLocal is not None
     with _SessionLocal() as db:
         run = db.get(CalibrationRun, run_id)
@@ -710,6 +781,7 @@ def _run_processing_task(
             _do_process(run, ref_paths, cal_path, settings, db)
         except Exception as exc:  # noqa: BLE001
             import traceback
+
             _log.exception("Processing failed for run %s", run_id)
             run.status = "failed"
             run.failure_reason = {
@@ -760,8 +832,12 @@ def _do_process(
     setpoints = [
         SetpointWindow(
             target=sp["target_c"],
-            start=datetime.fromisoformat(sp["start_at"]) if isinstance(sp["start_at"], str) else sp["start_at"],
-            end=datetime.fromisoformat(sp["end_at"]) if isinstance(sp["end_at"], str) else sp["end_at"],
+            start=datetime.fromisoformat(sp["start_at"])
+            if isinstance(sp["start_at"], str)
+            else sp["start_at"],
+            end=datetime.fromisoformat(sp["end_at"])
+            if isinstance(sp["end_at"], str)
+            else sp["end_at"],
         )
         for sp in run.setpoints
     ]
@@ -769,9 +845,17 @@ def _do_process(
     start = int(run.start_cert_no)
     threshold = float(run.threshold_c)
 
-    def _result(logger: Logger, name: str, verdict: str, *, per_setpoint=None,
-                cert_no=None, cert_path=None, max_deviation_c=None,
-                failure_reason=None) -> LoggerResult:
+    def _result(
+        logger: Logger,
+        name: str,
+        verdict: str,
+        *,
+        per_setpoint=None,
+        cert_no=None,
+        cert_path=None,
+        max_deviation_c=None,
+        failure_reason=None,
+    ) -> LoggerResult:
         return LoggerResult(
             run_id=run.id,
             logger_id=logger.id,
@@ -807,13 +891,15 @@ def _do_process(
         for sp in setpoints:
             ref_v, cal_v, _ = find_values_for_target(cal_df, ref_df, sp.target, sp.start, sp.end)
             dev = abs(ref_v - cal_v) if ref_v is not None and cal_v is not None else None
-            per_sp.append({
-                "target_c": sp.target,
-                "ref_c": ref_v,
-                "cal_c": cal_v,
-                "dev_c": round(dev, 3) if dev is not None else None,
-                "within_tol": (dev is not None and dev <= threshold),
-            })
+            per_sp.append(
+                {
+                    "target_c": sp.target,
+                    "ref_c": ref_v,
+                    "cal_c": cal_v,
+                    "dev_c": round(dev, 3) if dev is not None else None,
+                    "within_tol": (dev is not None and dev <= threshold),
+                }
+            )
             if ref_v is None:
                 unmatched_targets.append(sp.target)
             elif dev is not None:
@@ -821,10 +907,16 @@ def _do_process(
 
         if unmatched_targets:
             targets_str = ", ".join(f"{t:g}°C" for t in unmatched_targets)
-            results.append(_result(
-                logger, name, "invalid", per_setpoint=per_sp, cert_no=cert_no,
-                failure_reason=f"No reference reading within tolerance for target(s): {targets_str}",
-            ))
+            results.append(
+                _result(
+                    logger,
+                    name,
+                    "invalid",
+                    per_setpoint=per_sp,
+                    cert_no=cert_no,
+                    failure_reason=f"No reference reading within tolerance for target(s): {targets_str}",
+                )
+            )
             continue
 
         run_cfg = RunConfig(
@@ -841,10 +933,17 @@ def _do_process(
         max_dev = max(deviations) if deviations else None
         verdict = "pass" if (max_dev is not None and max_dev <= threshold) else "fail"
 
-        results.append(_result(
-            logger, name, verdict, per_setpoint=per_sp, cert_no=cert_no,
-            cert_path=str(out_path), max_deviation_c=max_dev,
-        ))
+        results.append(
+            _result(
+                logger,
+                name,
+                verdict,
+                per_setpoint=per_sp,
+                cert_no=cert_no,
+                cert_path=str(out_path),
+                max_deviation_c=max_dev,
+            )
+        )
 
     db.add_all(results)
     run.status, run.failure_reason = _compute_run_status([r.verdict for r in results])
@@ -864,6 +963,7 @@ def _default_template() -> Path:
 # ── Detail builder ────────────────────────────────────────────────────────
 
 # ── Manual deviation correction ───────────────────────────────────────────
+
 
 class DeviationCorrection(BaseModel):
     setpoint_index: int
@@ -890,7 +990,9 @@ def correct_deviation(
     sp = dict(per_sp[body.setpoint_index])
     ref_c = sp.get("ref_c")
     if ref_c is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no reference value for this setpoint")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="no reference value for this setpoint"
+        )
 
     new_dev = round(abs(body.new_deviation), 3)
     # Preserve sign direction of original deviation; default to ref - cal convention
@@ -925,6 +1027,7 @@ def correct_deviation(
         try:
             from docx import Document
             from ite_api.calibration.docx_filler import fill_results_table
+
             doc = Document(str(cert_path))
             ordered = [(s.get("ref_c"), s.get("cal_c")) for s in per_sp]
             fill_results_table(doc, ordered)
@@ -935,25 +1038,32 @@ def correct_deviation(
     else:
         _regenerate_certificate(run, result, settings, db)
 
-    write_audit(db, user_id=user.id, run_id=run_id, action="result.deviation_corrected", detail={
-        "result_id": str(result_id),
-        "sheet_name": result.sheet_name,
-        "setpoint_index": body.setpoint_index,
-        "target_c": sp.get("target_c"),
-        "old_dev_c": sp.get("dev_c"),
-        "new_dev_c": new_dev,
-        "new_verdict": new_verdict,
-    })
+    write_audit(
+        db,
+        user_id=user.id,
+        run_id=run_id,
+        action="result.deviation_corrected",
+        detail={
+            "result_id": str(result_id),
+            "sheet_name": result.sheet_name,
+            "setpoint_index": body.setpoint_index,
+            "target_c": sp.get("target_c"),
+            "old_dev_c": sp.get("dev_c"),
+            "new_dev_c": new_dev,
+            "new_verdict": new_verdict,
+        },
+    )
     db.commit()
     return {
         "id": str(result.id),
         "sheet_name": result.sheet_name,
         "verdict": result.verdict,
-        "max_deviation_c": float(result.max_deviation_c) if result.max_deviation_c is not None else None,
+        "max_deviation_c": float(result.max_deviation_c)
+        if result.max_deviation_c is not None
+        else None,
         "cert_no": result.cert_no,
         "per_setpoint": result.per_setpoint,
     }
-
 
 
 def _regenerate_certificate(
@@ -967,7 +1077,9 @@ def _regenerate_certificate(
     from ite_api.calibration.ref_loader import combine_refs, load_ref_auto
 
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
-    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)).first()
+    cal_file = db.scalars(
+        select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)
+    ).first()
     if not ref_files or cal_file is None:
         raise RuntimeError("Cannot regenerate: missing uploaded files")
 
@@ -978,8 +1090,12 @@ def _regenerate_certificate(
     setpoints = [
         SetpointWindow(
             target=sp["target_c"],
-            start=datetime.fromisoformat(sp["start_at"]) if isinstance(sp["start_at"], str) else sp["start_at"],
-            end=datetime.fromisoformat(sp["end_at"]) if isinstance(sp["end_at"], str) else sp["end_at"],
+            start=datetime.fromisoformat(sp["start_at"])
+            if isinstance(sp["start_at"], str)
+            else sp["start_at"],
+            end=datetime.fromisoformat(sp["end_at"])
+            if isinstance(sp["end_at"], str)
+            else sp["end_at"],
         )
         for sp in run.setpoints
     ]
@@ -999,7 +1115,9 @@ def _regenerate_certificate(
 
 def _run_detail(run: CalibrationRun, db: Session) -> RunDetail:
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
-    cal_file = db.scalars(select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)).first()
+    cal_file = db.scalars(
+        select(RunCalibrationFile).where(RunCalibrationFile.run_id == run.id)
+    ).first()
     results = db.scalars(select(LoggerResult).where(LoggerResult.run_id == run.id)).all()
     return RunDetail(
         id=run.id,
@@ -1026,13 +1144,17 @@ def _run_detail(run: CalibrationRun, db: Session) -> RunDetail:
             "original_name": cal_file.original_name,
             "sha256": cal_file.sha256,
             "sheet_names": cal_file.sheet_names,
-        } if cal_file else None,
+        }
+        if cal_file
+        else None,
         results=[
             {
                 "id": str(r.id),
                 "sheet_name": r.sheet_name,
                 "verdict": r.verdict,
-                "max_deviation_c": float(r.max_deviation_c) if r.max_deviation_c is not None else None,
+                "max_deviation_c": float(r.max_deviation_c)
+                if r.max_deviation_c is not None
+                else None,
                 "cert_no": r.cert_no,
                 "per_setpoint": r.per_setpoint,
                 "failure_reason": r.failure_reason,
@@ -1040,5 +1162,3 @@ def _run_detail(run: CalibrationRun, db: Session) -> RunDetail:
             for r in results
         ],
     )
-
-

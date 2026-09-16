@@ -80,11 +80,13 @@ def test_me_returns_user(client, db_session):
 def test_expired_access_is_silently_rotated(client, db_session):
     u = _make_user(db_session, email="r@b.co", password="hunter2-long-enough")
     rt = create_refresh_token()
-    db_session.add(UserSession(
-        user_id=u.id,
-        token_hash=hash_refresh_token(rt),
-        expires_at=datetime.now(UTC) + timedelta(days=14),
-    ))
+    db_session.add(
+        UserSession(
+            user_id=u.id,
+            token_hash=hash_refresh_token(rt),
+            expires_at=datetime.now(UTC) + timedelta(days=14),
+        )
+    )
     db_session.commit()
     client.cookies.set("ite_at", "expired.garbage.token")
     client.cookies.set("ite_rt", rt)
@@ -104,8 +106,10 @@ def test_invalid_refresh_returns_401(client):
 
 # ── Password reset ────────────────────────────────────────────────────────
 
+
 def test_reset_password_sets_password_and_logs_in(client, db_session):
     from ite_api.db.models import PasswordReset
+
     u = _make_user(db_session, email="newbie@example.com", password="old-password-12")
     raw = create_refresh_token()
     pr = PasswordReset(
@@ -116,16 +120,22 @@ def test_reset_password_sets_password_and_logs_in(client, db_session):
     db_session.add(pr)
     db_session.commit()
 
-    r = client.post("/api/auth/reset-password", json={"token": raw, "password": "new-strong-password-42"})
+    r = client.post(
+        "/api/auth/reset-password", json={"token": raw, "password": "new-strong-password-42"}
+    )
     assert r.status_code == 204
     assert "ite_at" in r.cookies
 
-    r2 = client.post("/api/auth/login", json={"email": "newbie@example.com", "password": "new-strong-password-42"})
+    r2 = client.post(
+        "/api/auth/login",
+        json={"email": "newbie@example.com", "password": "new-strong-password-42"},
+    )
     assert r2.status_code == 204
 
 
 def test_reset_password_rejects_short_password(client, db_session):
     from ite_api.db.models import PasswordReset
+
     u = _make_user(db_session, email="short@example.com", password="old-password-12")
     raw = create_refresh_token()
     pr = PasswordReset(
@@ -143,6 +153,7 @@ def test_reset_password_rejects_short_password(client, db_session):
 def test_reset_password_rejects_used_token(client, db_session):
     from datetime import timezone
     from ite_api.db.models import PasswordReset
+
     u = _make_user(db_session, email="used@example.com", password="old-password-12")
     raw = create_refresh_token()
     pr = PasswordReset(
@@ -160,6 +171,7 @@ def test_reset_password_rejects_used_token(client, db_session):
 
 def test_reset_password_rejects_expired_token(client, db_session):
     from ite_api.db.models import PasswordReset
+
     u = _make_user(db_session, email="expired@example.com", password="old-password-12")
     raw = create_refresh_token()
     pr = PasswordReset(

@@ -34,9 +34,7 @@ class RefreshMiddleware(BaseHTTPMiddleware):
             rotated = self._rotate(rt)
             if rotated:
                 new_at, new_rt = rotated
-                cookie_value = (
-                    f"{s.cookie_access_name}={new_at}; {s.cookie_refresh_name}={new_rt}"
-                )
+                cookie_value = f"{s.cookie_access_name}={new_at}; {s.cookie_refresh_name}={new_rt}"
                 hdrs = [(k, v) for k, v in request.scope["headers"] if k != b"cookie"]
                 hdrs.append((b"cookie", cookie_value.encode()))
                 request.scope["headers"] = hdrs
@@ -46,16 +44,22 @@ class RefreshMiddleware(BaseHTTPMiddleware):
         if rotated:
             new_at, new_rt = rotated
             response.set_cookie(
-                s.cookie_access_name, new_at,
+                s.cookie_access_name,
+                new_at,
                 max_age=s.access_token_minutes * 60,
-                httponly=True, secure=s.cookie_secure,
-                samesite=s.cookie_samesite, path="/",
+                httponly=True,
+                secure=s.cookie_secure,
+                samesite=s.cookie_samesite,
+                path="/",
             )
             response.set_cookie(
-                s.cookie_refresh_name, new_rt,
+                s.cookie_refresh_name,
+                new_rt,
                 max_age=s.refresh_token_days * 24 * 60 * 60,
-                httponly=True, secure=s.cookie_secure,
-                samesite=s.cookie_samesite, path="/",
+                httponly=True,
+                secure=s.cookie_secure,
+                samesite=s.cookie_samesite,
+                path="/",
             )
         return response
 

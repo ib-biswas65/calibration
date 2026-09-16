@@ -44,6 +44,7 @@ def client(postgres_url: str, engine, monkeypatch, tmp_path) -> Iterator[TestCli
     monkeypatch.setenv("ITE_ALLOWED_ORIGINS", "http://localhost")
     monkeypatch.setenv("ITE_DATA_DIR", str(tmp_path / "data"))
     from ite_api.main import create_app
+
     app = create_app()
     with TestClient(app) as c:
         c.headers["Origin"] = "http://localhost"
