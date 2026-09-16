@@ -719,6 +719,26 @@ def _run_processing_task(
             db.commit()
 
 
+def _compute_run_status(verdicts: list[str]) -> tuple[str, dict | None]:
+    """Derive a run's overall status from its logger results' verdicts.
+
+    A single source of truth for this decision, rather than two booleans
+    hand-threaded through the processing loop: partial if there's a mix of
+    invalid and valid results, failed if every result is invalid (nothing to
+    show is worse than "no cert generated"), complete otherwise (including
+    the empty-sheet-list case, which has nothing to be invalid).
+    """
+    any_invalid = any(v == "invalid" for v in verdicts)
+    any_valid = any(v != "invalid" for v in verdicts)
+    if any_invalid and any_valid:
+        return "partial", None
+    if any_invalid:
+        return "failed", {
+            "message": "All logger results failed validation; see individual results for reasons."
+        }
+    return "complete", None
+
+
 def _do_process(
     run: CalibrationRun,
     ref_paths: list[Path],
@@ -749,8 +769,22 @@ def _do_process(
     start = int(run.start_cert_no)
     threshold = float(run.threshold_c)
 
-    any_invalid = False
-    any_valid = False
+    def _result(logger: Logger, name: str, verdict: str, *, per_setpoint=None,
+                cert_no=None, cert_path=None, max_deviation_c=None,
+                failure_reason=None) -> LoggerResult:
+        return LoggerResult(
+            run_id=run.id,
+            logger_id=logger.id,
+            sheet_name=name,
+            verdict=verdict,
+            max_deviation_c=max_deviation_c,
+            per_setpoint=per_setpoint or [],
+            cert_no=cert_no,
+            cert_path=cert_path,
+            failure_reason=failure_reason,
+        )
+
+    results: list[LoggerResult] = []
 
     for idx, name in enumerate(sheet_names):
         cert_no = str(start + idx).zfill(run.cert_width)
@@ -764,18 +798,7 @@ def _do_process(
         try:
             cal_df = load_calibration_sheet(wb, name)
         except ValueError as exc:
-            any_invalid = True
-            db.add(LoggerResult(
-                run_id=run.id,
-                logger_id=logger.id,
-                sheet_name=name,
-                verdict="invalid",
-                max_deviation_c=None,
-                per_setpoint=[],
-                cert_no=None,
-                cert_path=None,
-                failure_reason=str(exc),
-            ))
+            results.append(_result(logger, name, "invalid", failure_reason=str(exc)))
             continue
 
         per_sp = []
@@ -797,24 +820,13 @@ def _do_process(
                 deviations.append(dev)
 
         if unmatched_targets:
-            any_invalid = True
             targets_str = ", ".join(f"{t:g}°C" for t in unmatched_targets)
-            db.add(LoggerResult(
-                run_id=run.id,
-                logger_id=logger.id,
-                sheet_name=name,
-                verdict="invalid",
-                max_deviation_c=None,
-                per_setpoint=per_sp,
-                cert_no=cert_no,
-                cert_path=None,
-                failure_reason=(
-                    f"No reference reading within tolerance for target(s): {targets_str}"
-                ),
+            results.append(_result(
+                logger, name, "invalid", per_setpoint=per_sp, cert_no=cert_no,
+                failure_reason=f"No reference reading within tolerance for target(s): {targets_str}",
             ))
             continue
 
-        any_valid = True
         run_cfg = RunConfig(
             cert_no=cert_no,
             serial=name.strip(),
@@ -829,28 +841,13 @@ def _do_process(
         max_dev = max(deviations) if deviations else None
         verdict = "pass" if (max_dev is not None and max_dev <= threshold) else "fail"
 
-        db.add(LoggerResult(
-            run_id=run.id,
-            logger_id=logger.id,
-            sheet_name=name,
-            verdict=verdict,
-            max_deviation_c=max_dev,
-            per_setpoint=per_sp,
-            cert_no=cert_no,
-            cert_path=str(out_path),
-            failure_reason=None,
+        results.append(_result(
+            logger, name, verdict, per_setpoint=per_sp, cert_no=cert_no,
+            cert_path=str(out_path), max_deviation_c=max_dev,
         ))
 
-    if any_invalid and any_valid:
-        run.status = "partial"
-    elif any_invalid:
-        run.status = "failed"
-        run.failure_reason = {
-            "message": "All logger results failed validation; see individual results for reasons."
-        }
-    else:
-        run.status = "complete"
-        run.failure_reason = None
+    db.add_all(results)
+    run.status, run.failure_reason = _compute_run_status([r.verdict for r in results])
     run.completed_at = datetime.now(UTC)
     db.commit()
 

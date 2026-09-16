@@ -10,6 +10,13 @@ export interface AuthMe {
 export type RunStatus = "draft" | "processing" | "complete" | "partial" | "failed";
 export type Verdict = "pass" | "fail" | "adjusted" | "invalid";
 
+// The single "is this verdict bad" predicate — used for row/card highlighting
+// wherever a LoggerResult is rendered. Keep new verdicts' bad/good status
+// decided here, not re-derived inline at each call site.
+export function isFailingVerdict(verdict: Verdict): boolean {
+  return verdict === "fail" || verdict === "invalid";
+}
+
 export interface SetpointConfig {
   target_c: number;
   start_at: string;
