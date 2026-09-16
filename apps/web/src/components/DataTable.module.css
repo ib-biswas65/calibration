@@ -3,6 +3,8 @@
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
   background: var(--c-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .table {

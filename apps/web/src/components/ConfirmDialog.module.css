@@ -10,7 +10,9 @@
 }
 
 .dialog {
-  background: var(--c-surface);
+  background: var(--c-surface-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
   padding: var(--s-6);
