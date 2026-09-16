@@ -23,6 +23,6 @@
   to   { transform: translateX(0);    opacity: 1; }
 }
 
-.success { background: var(--color-boardroom-navy); color: #fff; }
+.success { background: var(--c-pass);               color: #fff; }
 .error   { background: var(--c-fail);               color: #fff; }
-.info    { background: var(--color-brand-electric);  color: #fff; }
+.info    { background: var(--color-boardroom-navy);  color: #fff; }

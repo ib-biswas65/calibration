@@ -2,7 +2,7 @@
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 .sidebar {
-  background: var(--color-boardroom-navy);
+  background: linear-gradient(180deg, var(--color-boardroom-navy), #202226);
   color: rgba(255,255,255,.75);
   padding: var(--s-6) var(--s-4);
   display: flex;
@@ -10,20 +10,33 @@
   animation: fadeIn 400ms var(--ease-out) both;
 }
 
+.brandBlock { margin-bottom: var(--s-8); }
+
 .brand {
   font-family: var(--font-heading);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.02em;
   color: #fff;
-  margin-bottom: var(--s-8);
   padding: 0 var(--s-2);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--s-2);
   /* Hero landing target: slides in from left as login title exits */
   animation: staggerIn 380ms 80ms var(--ease-out) both;
 }
+.brand span { flex: 1; }
+
+.brandMark { width: 26px; height: 26px; flex-shrink: 0; }
+
+.brandQuartet {
+  display: flex;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 8px var(--s-2) 0;
+}
+.brandQuartet span { flex: 1; }
 
 .sidebarClose {
   display: none;
@@ -38,7 +51,9 @@
 .sidebarClose:hover { color: #fff; }
 
 .navItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 9px var(--s-3);
   border-radius: var(--radius-pill);
   color: rgba(255,255,255,.6);
@@ -48,6 +63,8 @@
   transition: background var(--transition-fast), color var(--transition-fast);
   animation: staggerIn 360ms var(--ease-out) both;
 }
+.navItem svg { flex-shrink: 0; opacity: .85; }
+.navItemActive svg { opacity: 1; }
 .navItem:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
 .navItemActive {
   background: var(--color-brand-electric);
@@ -66,12 +83,26 @@
 .sidebar a:nth-child(9)  { animation-delay: 470ms; }
 
 /* ── Main area ───────────────────────────────────────────────────────── */
-.main { display: flex; flex-direction: column; background: var(--c-bg); }
+.main {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--c-bg);
+  /* Ambient color pools in the brand quartet — without this, the glass
+     surfaces elsewhere read as flat gray instead of translucent. */
+  background-image:
+    radial-gradient(760px 480px at 6% 0%,    var(--ambient-green), transparent 62%),
+    radial-gradient(680px 480px at 96% 6%,   var(--ambient-blue),  transparent 60%),
+    radial-gradient(720px 560px at 74% 100%, var(--ambient-amber), transparent 62%),
+    radial-gradient(560px 460px at 12% 96%,  var(--ambient-red),   transparent 60%);
+  background-attachment: fixed;
+}
 
 .topbar {
   height: 56px;
   border-bottom: 1px solid var(--c-border);
-  background: var(--c-surface);
+  background: var(--c-surface-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: flex-end;
