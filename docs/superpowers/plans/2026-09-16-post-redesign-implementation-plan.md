@@ -12,6 +12,15 @@ Ground truth was checked against the repo on 2026-09-16 (see "State at time
 of writing"). Where a claim from the session could not be confirmed in the
 tree, it says so.
 
+**This document supersedes and incorporates
+`docs/superpowers/plans/2026-08-17-calibration-ui-overhaul.md`.** That older
+plan was never merged and still exists only on the branch
+`origin/claude/calibration-ui-overhaul-plan-6uo67q` (left as-is, not deleted).
+Its confirmed root cause for the Upcoming-calibrations bug and its cert_no
+detail have been folded into Phase 4 and Phase 2 below; everything else it
+covered lives on as Phase 6. This document is the authoritative plan going
+forward.
+
 ---
 
 ## State at time of writing (read this first)
@@ -54,15 +63,23 @@ Read this as "do it in this order unless the user says otherwise".
    lands through a PR that CI actually checks.
 3. **Phase 2**: the five known correctness bugs, worst first (`cert_no`
    uniqueness, silent regeneration failure, timezone offset, refresh race,
-   timing side-channel).
+   timing side-channel), **plus the Upcoming-calibrations data-integrity gap
+   (Phase 4 below), same class of bug and now fully scoped.** It is no
+   longer blocked on the user — root cause is confirmed and the fix is
+   designed — so build it alongside 2.1-2.5 rather than after Phase 3. Give
+   it its own migration revision, allocated after 2.1's and 2.3's so the
+   three don't race each other.
 4. **Phase 3**: ops/deploy fixes. Two of these (`setup-windows.ps1`,
    `AGENT-SETUP.md` password generator) touch the migration path, so they
    should be done **before next week's PC move**, and can be pulled forward
    ahead of Phase 2 if the move date is fixed.
-5. **Phase 4**: reproduce and scope the "Upcoming calibrations" report. This
-   is blocked on the user, so ask the question now (see "Open questions") and
-   slot the work wherever the answer arrives.
+5. **Phase 4**: build the confirmed fix for "Upcoming calibrations shows
+   nothing" (see Phase 4 below) — sequenced with Phase 2, not after Phase 3.
 6. **Phase 5**: remaining design polish and mobile-width verification.
+7. **Phase 6**: carried-over scope from the 2026-08-17 UI overhaul plan
+   (archive/restore, admin audit trail, New Calibration UX, Overview
+   overhaul, Loggers page improvements, PDF export). Not prioritized by this
+   session — pick up only once the user explicitly prioritizes it.
 
 Parallel workstream, do not fold into the above: the Windows PC migration
 (`docs/MIGRATION.md`, GitHub issues #2/#3/#4). Its only hard dependency on
@@ -270,16 +287,43 @@ All land via PR after Phase 1. Each is red-test-then-fix.
 - **Fix shape**:
   1. Query production for existing duplicates first
      (`SELECT cert_no, count(*) FROM logger_results GROUP BY 1 HAVING count(*)>1`).
+     This is a hard **prerequisite**, not a nice-to-have: the old 2026-08-17
+     UI overhaul plan (see the top-of-document note) independently reached
+     this same bug and flagged that if the historical import produced any
+     duplicates, a unique-index migration fails outright against a live
+     database. It does not claim production already has duplicates, only
+     that the audit must run before the migration does. Ship a read-only
+     check script alongside the migration.
   2. Decide the rule: unique across all results, or unique among
      non-invalid/non-superseded results (a re-run of the same loggers may
      legitimately re-issue the same number, see `docs/CHANGE_LOG.md`'s cert
-     re-issue entry).
-  3. Migration `0009` adding the partial unique index matching the rule.
+     re-issue entry). **Already decided, see "Open questions" item 4**: unique
+     among valid/current certificates only.
+  3. Migration `0009` adding a partial unique index on
+     `logger_results (cert_no)`, scoped to the decided rule (the old plan's
+     own sketch of this index used `WHERE cert_no IS NOT NULL` with no
+     valid/current scoping, and even folded archived runs into the same
+     uniqueness domain so numbers could never be reissued — that is stricter
+     than the decided rule above; take the mechanism from it, not that
+     predicate).
   4. `find_by_cert_no` returns 409/ambiguous if more than one match instead of
      silently `.first()`.
-  5. Guard at run creation: refuse a `start_cert_no` whose range collides.
-- **Needs user**: yes, step 2 (what is the intended uniqueness rule, and
-  what to do with any existing duplicates).
+  5. Guard at run creation: refuse a `start_cert_no` whose range collides
+     with `[start, start + n_sheets)`. **Repeat the same check at process
+     time**, not just at creation — the sheet count isn't known until then,
+     and two operators can hold two draft runs at once.
+  6. Engine layer: wrap the per-logger insert so an `IntegrityError` marks
+     the run `failed` with a readable `failure_reason` instead of a raw
+     traceback.
+  7. Optional, cheap, and already scoped by the old plan: a
+     `GET /api/runs/next-cert-no` endpoint (`MAX(cert_no)` cast to `bigint`,
+     safe because all existing data is numeric zero-padded per
+     `scripts/migrate_historical.py:213`) to replace the hardcoded
+     `startCertNo = "0000001000"` in `NewCalibrationPage.tsx:37` and stop
+     relying on the operator to type the right number; today `_do_process`
+     assigns sequentially from that starting value at `runs.py:743-747`.
+- **Needs user**: no further decision — step 2's rule is already decided
+  (see above).
 - **Tier**: spec (short, one page in `docs/superpowers/specs/`), because it
   changes a business rule on issued certificates and needs a migration.
 
@@ -423,22 +467,92 @@ All land via PR after Phase 1. Each is red-test-then-fix.
 
 ---
 
-## Phase 4: "Upcoming calibrations and other features aren't working properly"
+## Phase 4: "Upcoming calibrations shows nothing" — root cause confirmed, fix designed, ready to implement
 
-- **Where**: `apps/web/src/pages/UpcomingPage.tsx`. There is no `upcoming`
-  route in `apps/api/ite_api/routes/`; the page derives its list client-side
-  from another endpoint (loggers/runs). Structurally it matched its API on a
-  read-through, so the failure is either data (e.g. next-due dates missing
-  or in the wrong timezone, see 2.3), a filter that excludes everything, or
-  a different page the user means by "other features".
-- **Blocked on the user**: need (1) the exact page(s), (2) what they expected
-  to see vs what they saw, (3) a logger or run they expected to appear, (4)
-  browser and whether it is the production PC. Alternatively, spin up the
-  stack with a copy of the production dump (collaborator's issue #2 dump is
-  verified) and click through every page; that is the fastest way to turn
-  "not working properly" into concrete bugs.
-- **Tier**: `bug-resolution` pipeline once reproduced. Until then it is not
-  schedulable; do not guess at fixes.
+This is no longer a "reproduce and scope" item. The root cause was
+independently found and fully designed in the older, unmerged
+2026-08-17 UI overhaul plan (see the top-of-document note); it matches
+exactly the one concrete symptom already on record in "Open questions" item
+7 (no upcoming calibrations at all, not a wrong subset — a
+complete-empty-result bug, not a filtering edge case).
+
+### Root cause (confirmed)
+
+`UpcomingPage.tsx:24-25` filters on `next_due_at != null`.
+**`Logger.next_due_at` is never written by any automated path in the
+system:**
+
+- `_do_process` creates loggers with `Logger(serial_no=name.strip())` and
+  nothing else (`runs.py:759-763`);
+- the historical import does the same (`scripts/migrate_historical.py:225`);
+- the only writer is the manual `PATCH /api/loggers/{id}` (`loggers.py:72`),
+  which nobody calls automatically.
+
+So the column is NULL fleet-wide and the page's filter excludes every
+logger, unconditionally. This matches the "shows nothing at all" symptom
+exactly.
+
+### Fix design (carried over from the old plan's §7 cross-cutting section)
+
+- **Schema**: a new migration adding to `loggers` — `last_calibrated_at DATE
+  NULL` and `due_override BOOLEAN NOT NULL DEFAULT false` (set when an
+  engineer manually edits a due date, so recomputation doesn't stomp it).
+  Add `ITE_CAL_INTERVAL_MONTHS` (default `12`) to `config.py` as a single
+  knob rather than a per-logger field. Allocate this migration's revision
+  after 2.1's `0009` and 2.3's `0010` so the three don't collide (the old
+  plan called this `0009`, but that number is now taken by 2.1's cert_no
+  index — the number is not load-bearing, the ordering relative to those two
+  migrations is).
+- **One helper, `recompute_logger_schedule(db, logger_id)`**:
+  `last_calibrated_at` = the **test date** of the most recent `complete`,
+  non-archived run holding a result for that logger; `next_due_at` =
+  `last_calibrated_at + ITE_CAL_INTERVAL_MONTHS`; skipped entirely when
+  `due_override` is set.
+- **Use `calibration_runs.testing_start`** (date part) as the test date —
+  explicitly *not* `certificate_date`/`doc_date_jp` and *not* `created_at`.
+  Rationale (from the old plan, worth keeping verbatim since it heads off a
+  wrong re-derivation):
+  - `created_at` is when the row was inserted — the historical import ran in
+    2026-06 for batches tested in March, so this would schedule those
+    loggers months late.
+  - `certificate_date`/`doc_date_jp` is the date the *document* was issued,
+    typically a day or two after testing — close, but not the test date.
+  - `testing_start` is the actual testing window, and migration
+    `0005_fix_test_date_jp` re-derived `test_date_jp` from it precisely
+    because the certificate had been printing the issue date as the test
+    date. In the live database `test_date_jp` *is* `testing_start`, and it's
+    `NOT NULL`, so no fallback is needed.
+- **Call the helper from every path that changes run history**: after
+  `_do_process` completes, after a run is archived or restored (archiving
+  the newest run must roll a logger's due date back to the previous one —
+  relevant once Phase 6's archive/restore work exists), after
+  `PATCH /runs/{id}/dates`, and after a deviation correction changes a
+  verdict.
+- **Backfill script** in `scripts/`, with `--dry-run`, recomputing the whole
+  fleet from existing `logger_results`. This is what makes the Upcoming page
+  light up for the first time. Loggers with no completed run get
+  `last_calibrated_at = NULL` and land in a "Never calibrated" bucket rather
+  than a fabricated due date.
+  - **Data caveat**: `scripts/historical_batches.json` contains batches
+    whose stated test date and `testing_start` disagree (Batch 1 is named
+    "March 4" but carries `testing_start: 2026-03-10`). Migration `0005`
+    already normalised certificates to `testing_start`, so the backfill is
+    self-consistent, but spot-check a few historical loggers against the
+    paper certificates before trusting the resulting due dates.
+- **Once due dates exist**, the page itself also has a real off-by-one
+  worth fixing in the same pass: `daysUntil` (`UpcomingPage.tsx:9`) parses
+  `new Date("2026-08-17")` as UTC midnight, then compares it to a local
+  `Date.now()` — compare date-only values in local time instead. Also note
+  the 200-row cap hardcoded in `list_loggers` (`loggers.py:38`) with no sort
+  parameter — a larger fleet would silently truncate the Upcoming list even
+  once dates are populated; moving bucketing server-side
+  (`GET /api/loggers/upcoming?within_days=90`) avoids that, but is UI polish
+  on top of the actual fix and can be scoped separately if time-boxed.
+- **Needs user**: no further decision on the root cause or fix shape — this
+  proceeds straight to implementation.
+- **Tier**: spec (short), because it adds a migration and a new call
+  contract used from four places; use the `bug-resolution` pipeline for the
+  write-up since it started life as a bug report.
 
 ---
 
@@ -467,6 +581,58 @@ Lowest priority; everything already inherits the new tokens.
 - One paragraph pointing at `DESIGN.md` and `tokens.css` as the source of
   truth for the theme.
 - **Tier**: just do it.
+
+---
+
+## Phase 6: carried over from the 2026-08-17 UI overhaul plan
+
+This is real prior planning work, not something re-derived in this session
+— it is the remaining content of `docs/superpowers/plans/2026-08-17-calibration-ui-overhaul.md`
+(unmerged, still on `origin/claude/calibration-ui-overhaul-plan-6uo67q`) that
+has no equivalent anywhere in Phases 0-5. It was **not part of this
+session's priority-setting** and should not be treated as equally urgent as
+Phases 0-5 without the user explicitly prioritizing it. Each item below is a
+one-line pointer into the old plan's detail, not a rewrite.
+
+- **Archive/restore semantics for calibration runs** — see the old plan's
+  "§2 Calibrations page — archive a run". Today `DELETE /api/runs/{run_id}`
+  (`runs.py:317`) is a hard delete that unlinks certificates and reference
+  files from disk; the old plan redesigns it as a soft archive (new
+  `archived_at`/`archived_by`/`archive_reason` columns, a restore endpoint,
+  archived runs excluded from working views but still resolvable by
+  certificate number) with hard deletion demoted to an explicit CLI-only
+  purge command.
+- **Admin audit trail** — see the old plan's "§6 Admin audit trail". Audit
+  rows are already written (`audit.py`) but the only reader is
+  `GET /api/runs/{run_id}/audit` (`runs.py:564`), scoped to one run; the old
+  plan adds a paginated `GET /api/audit` plus an Admin → Audit page. Notes
+  `audit_log.run_id` is deliberately not a foreign key
+  (`db/models/audit_log.py:21`) so entries survive a CLI purge.
+- **New Calibration page UX fixes (date defaults, draft persistence)** —
+  see the old plan's "§3a" and "§3b". Root causes: setpoint windows default
+  to `1900-01-01`/`2999-12-31` sentinels (`NewCalibrationPage.tsx:11-15`),
+  and there is no persistence anywhere in `apps/web/src` (confirmed by grep),
+  so navigating away loses the whole form. The old plan defaults windows to
+  today and adds a versioned, debounced `localStorage` draft with a discard
+  banner.
+- **Overview page overhaul** — see the old plan's "§1 Overview page — UI
+  overhaul". Reworks the KPI row to be clickable, adds an "attention rail"
+  for failed/processing runs, and includes one backend change (drop the
+  30-day cutoff on the recent-runs rail specifically, keep it for the
+  30-day stats).
+- **Loggers page improvements** — see the old plan's "§5 Loggers page —
+  completeness, freshness, sorting". Not in the task's original enumeration,
+  but has no equivalent in Phases 0-5 either, so it's tracked here rather
+  than dropped: server-side sort/pagination and natural (numeric-aware)
+  ordering for `list_loggers` (`loggers.py:38` has a hardcoded 200-row cap
+  and no sort parameter today), serial normalisation to stop duplicate
+  logger rows, and a reconciliation CLI to backfill missing `loggers` rows.
+- **PDF export** — see the old plan's "§3e Word or PDF certificate
+  download". Certificates are `.docx`-only today; the old plan's approach is
+  LibreOffice + `fonts-noto-cjk` in the API container (Word-native
+  conversion isn't available since the API runs in a Linux container on the
+  Windows host), starting with a fidelity spike against the real Japanese
+  certificate template before building the conversion endpoints.
 
 ---
 
