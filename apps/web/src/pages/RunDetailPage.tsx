@@ -33,7 +33,7 @@ function DevBar({ value, withinTol }: { value: number | null; withinTol: boolean
 }
 
 function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
-  const isFail = result.verdict === "fail";
+  const isFail = result.verdict === "fail" || result.verdict === "invalid";
   return (
     <div className={`${styles.card} ${isFail ? styles.cardFail : ""}`}>
       <div className={styles.cardTop}>
@@ -43,6 +43,11 @@ function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
         <StatusPill value={result.verdict} />
       </div>
       <div className={styles.cardLogger}>{result.sheet_name}</div>
+      {result.failure_reason && (
+        <div className={styles.muted} title={result.failure_reason}>
+          {result.failure_reason}
+        </div>
+      )}
       <div className={styles.cardBottom}>
         <span className={`${styles.cardDev} ${isFail ? styles.cardDevFail : ""}`}>
           {result.max_deviation_c !== null ? `${result.max_deviation_c.toFixed(2)}°C max` : "—"}
@@ -70,7 +75,7 @@ export function RunDetailPage() {
   const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
-  const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail">("");
+  const [verdictFilter, setVerdictFilter] = useState<"" | "pass" | "fail" | "invalid">("");
   const [retrying, setRetrying] = useState(false);
 
   // Inline batch name editing
@@ -161,14 +166,18 @@ export function RunDetailPage() {
     if (!run || results.length === 0) return null;
     const passed = results.filter((r) => r.verdict === "pass").length;
     const failed = results.filter((r) => r.verdict === "fail").length;
-    const total = results.length;
+    const invalid = results.filter((r) => r.verdict === "invalid").length;
+    // Invalid results have no measured pass/fail outcome — excluded from the
+    // denominator so the rate isn't diluted by results we couldn't measure at all.
+    const measured = passed + failed;
     const devs = results
       .map((r) => r.max_deviation_c)
       .filter((d): d is number => d !== null);
     return {
       passed,
       failed,
-      passRate: total > 0 ? ((passed / total) * 100).toFixed(1) : null,
+      invalid,
+      passRate: measured > 0 ? ((passed / measured) * 100).toFixed(1) : null,
       maxDev: devs.length > 0 ? Math.max(...devs).toFixed(2) : null,
     };
   }, [run]);
@@ -372,6 +381,15 @@ export function RunDetailPage() {
             <span className={`${styles.statVal} ${stats.failed > 0 ? styles.statFail : ""}`}>{stats.failed}</span>
             <span className={styles.statLbl}>Fail</span>
           </div>
+          {stats.invalid > 0 && (
+            <>
+              <div className={styles.statDivider} />
+              <div className={styles.statItem}>
+                <span className={`${styles.statVal} ${styles.statFail}`}>{stats.invalid}</span>
+                <span className={styles.statLbl}>Invalid</span>
+              </div>
+            </>
+          )}
           <div className={styles.statDivider} />
           <div className={styles.statItem}>
             <span className={styles.statVal}>{stats.passRate ?? "—"}%</span>
@@ -405,6 +423,10 @@ export function RunDetailPage() {
           className={`${styles.filterPill} ${verdictFilter === "fail" ? styles.filterActive : ""}`}
           onClick={() => setVerdictFilter("fail")}
         >Fail</button>
+        <button
+          className={`${styles.filterPill} ${verdictFilter === "invalid" ? styles.filterActive : ""}`}
+          onClick={() => setVerdictFilter("invalid")}
+        >Invalid</button>
         <div className={styles.viewToggle}>
           <button
             className={`${styles.vtBtn} ${view === "table" ? styles.vtActive : ""}`}
@@ -460,19 +482,28 @@ export function RunDetailPage() {
                 {filtered.length === 0 ? (
                   <tr><td colSpan={5 + (run.results[0]?.per_setpoint.length ?? 0)} className={styles.empty}>No results match</td></tr>
                 ) : (
-                  filtered.map((r) => (
-                    <tr key={r.id} className={r.verdict === "fail" ? styles.rowFail : styles.rowPass}>
-                      <td className={`${styles.certNoCell} ${r.verdict === "fail" ? styles.certNoFail : ""}`}>
+                  filtered.map((r) => {
+                    const isBad = r.verdict === "fail" || r.verdict === "invalid";
+                    return (
+                    <tr key={r.id} className={isBad ? styles.rowFail : styles.rowPass}>
+                      <td className={`${styles.certNoCell} ${isBad ? styles.certNoFail : ""}`}>
                         {r.cert_no ?? "—"}
                       </td>
-                      <td className={styles.serialCell}>{r.sheet_name}</td>
+                      <td className={styles.serialCell}>
+                        {r.sheet_name}
+                        {r.failure_reason && (
+                          <div className={styles.muted} title={r.failure_reason}>
+                            {r.failure_reason}
+                          </div>
+                        )}
+                      </td>
                       <td><StatusPill value={r.verdict} /></td>
                       {r.per_setpoint.map((sp) => (
                         <td key={sp.target_c}>
                           <DevBar value={sp.dev_c} withinTol={sp.within_tol} />
                         </td>
                       ))}
-                      <td className={r.verdict === "fail" ? styles.devValFail : styles.devValPass}>
+                      <td className={isBad ? styles.devValFail : styles.devValPass}>
                         {r.max_deviation_c !== null ? `${r.max_deviation_c.toFixed(2)}°C` : "—"}
                       </td>
                       <td>
@@ -488,7 +519,8 @@ export function RunDetailPage() {
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -188,7 +188,12 @@ def list_runs(
             (
                 func.sum(case((LoggerResult.verdict == "pass", 1.0), else_=0.0))
                 * 100.0
-                / func.nullif(func.count(LoggerResult.id), 0)
+                # Invalid results have no measured pass/fail outcome — excluding them
+                # from the denominator keeps pass_rate meaningful (not diluted by
+                # results we couldn't measure at all).
+                / func.nullif(
+                    func.sum(case((LoggerResult.verdict != "invalid", 1.0), else_=0.0)), 0
+                )
             ).label("pass_rate"),
             func.max(LoggerResult.max_deviation_c).label("max_deviation_c"),
         )
@@ -219,7 +224,7 @@ def list_runs(
     rows = db.execute(stmt).all()
     result = []
     for run, logger_count, pass_rate, max_dev in rows:
-        is_complete = run.status == "complete"
+        is_complete = run.status in ("complete", "partial")
         result.append(RunSummary(
             id=run.id,
             batch_name=run.batch_name,
@@ -536,6 +541,7 @@ def list_results(
             "max_deviation_c": float(r.max_deviation_c) if r.max_deviation_c is not None else None,
             "cert_no": r.cert_no,
             "per_setpoint": r.per_setpoint,
+            "failure_reason": r.failure_reason,
         }
         for r in results
     ]
@@ -743,8 +749,72 @@ def _do_process(
     start = int(run.start_cert_no)
     threshold = float(run.threshold_c)
 
+    any_invalid = False
+    any_valid = False
+
     for idx, name in enumerate(sheet_names):
         cert_no = str(start + idx).zfill(run.cert_width)
+
+        logger = db.scalars(select(Logger).where(Logger.serial_no == name.strip())).first()
+        if logger is None:
+            logger = Logger(serial_no=name.strip())
+            db.add(logger)
+            db.flush()
+
+        try:
+            cal_df = load_calibration_sheet(wb, name)
+        except ValueError as exc:
+            any_invalid = True
+            db.add(LoggerResult(
+                run_id=run.id,
+                logger_id=logger.id,
+                sheet_name=name,
+                verdict="invalid",
+                max_deviation_c=None,
+                per_setpoint=[],
+                cert_no=None,
+                cert_path=None,
+                failure_reason=str(exc),
+            ))
+            continue
+
+        per_sp = []
+        deviations = []
+        unmatched_targets: list[float] = []
+        for sp in setpoints:
+            ref_v, cal_v, _ = find_values_for_target(cal_df, ref_df, sp.target, sp.start, sp.end)
+            dev = abs(ref_v - cal_v) if ref_v is not None and cal_v is not None else None
+            per_sp.append({
+                "target_c": sp.target,
+                "ref_c": ref_v,
+                "cal_c": cal_v,
+                "dev_c": round(dev, 3) if dev is not None else None,
+                "within_tol": (dev is not None and dev <= threshold),
+            })
+            if ref_v is None:
+                unmatched_targets.append(sp.target)
+            elif dev is not None:
+                deviations.append(dev)
+
+        if unmatched_targets:
+            any_invalid = True
+            targets_str = ", ".join(f"{t:g}°C" for t in unmatched_targets)
+            db.add(LoggerResult(
+                run_id=run.id,
+                logger_id=logger.id,
+                sheet_name=name,
+                verdict="invalid",
+                max_deviation_c=None,
+                per_setpoint=per_sp,
+                cert_no=cert_no,
+                cert_path=None,
+                failure_reason=(
+                    f"No reference reading within tolerance for target(s): {targets_str}"
+                ),
+            ))
+            continue
+
+        any_valid = True
         run_cfg = RunConfig(
             cert_no=cert_no,
             serial=name.strip(),
@@ -756,32 +826,10 @@ def _do_process(
         )
         out_path = run_one_logger(run_cfg, sheet_name=name, wb=wb, ref_df=ref_df)
 
-        logger = db.scalars(select(Logger).where(Logger.serial_no == name.strip())).first()
-        if logger is None:
-            logger = Logger(serial_no=name.strip())
-            db.add(logger)
-            db.flush()
-
-        cal_df = load_calibration_sheet(wb, name)
-        per_sp = []
-        deviations = []
-        for sp in setpoints:
-            ref_v, cal_v, _ = find_values_for_target(cal_df, ref_df, sp.target, sp.start, sp.end)
-            dev = abs(ref_v - cal_v) if ref_v is not None and cal_v is not None else None
-            per_sp.append({
-                "target_c": sp.target,
-                "ref_c": ref_v,
-                "cal_c": cal_v,
-                "dev_c": round(dev, 3) if dev is not None else None,
-                "within_tol": (dev is not None and dev <= threshold),
-            })
-            if dev is not None:
-                deviations.append(dev)
-
         max_dev = max(deviations) if deviations else None
         verdict = "pass" if (max_dev is not None and max_dev <= threshold) else "fail"
 
-        lr = LoggerResult(
+        db.add(LoggerResult(
             run_id=run.id,
             logger_id=logger.id,
             sheet_name=name,
@@ -790,12 +838,20 @@ def _do_process(
             per_setpoint=per_sp,
             cert_no=cert_no,
             cert_path=str(out_path),
-        )
-        db.add(lr)
+            failure_reason=None,
+        ))
 
-    run.status = "complete"
+    if any_invalid and any_valid:
+        run.status = "partial"
+    elif any_invalid:
+        run.status = "failed"
+        run.failure_reason = {
+            "message": "All logger results failed validation; see individual results for reasons."
+        }
+    else:
+        run.status = "complete"
+        run.failure_reason = None
     run.completed_at = datetime.now(UTC)
-    run.failure_reason = None
     db.commit()
 
 
@@ -982,6 +1038,7 @@ def _run_detail(run: CalibrationRun, db: Session) -> RunDetail:
                 "max_deviation_c": float(r.max_deviation_c) if r.max_deviation_c is not None else None,
                 "cert_no": r.cert_no,
                 "per_setpoint": r.per_setpoint,
+                "failure_reason": r.failure_reason,
             }
             for r in results
         ],

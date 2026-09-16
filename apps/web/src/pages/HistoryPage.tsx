@@ -145,6 +145,7 @@ export function HistoryPage() {
           <option value="draft">Draft</option>
           <option value="processing">Processing</option>
           <option value="complete">Complete</option>
+          <option value="partial">Partial</option>
           <option value="failed">Failed</option>
         </select>
         <label className={styles.dateLabel}>

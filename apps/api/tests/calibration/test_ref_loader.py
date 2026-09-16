@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from ite_api.calibration.ref_loader import (
     _try_open,
@@ -41,6 +42,21 @@ def test_combine_refs_concatenates_and_sorts(reference_csv):
     assert len(combined) == 2 * len(df1)
     ts = combined["timestamp"].tolist()
     assert ts == sorted(ts)
+
+
+def test_load_ref_auto_raises_when_every_line_fails_to_parse(tmp_path):
+    """Format is detected (the header line looks like mc3000), but every actual data
+    row has an unparseable temperature — must raise, not silently return an empty
+    DataFrame. An empty-but-successful load previously flowed straight into the
+    matcher as "no reference data", masking a real malformed-file problem."""
+    p = tmp_path / "bad.csv"
+    p.write_text(
+        "2026/04/14 10:30:00,notanumber\n"
+        "2026/04/14 10:31:00,alsobad\n"
+    )
+    assert detect_format(p) == "mc3000"
+    with pytest.raises(ValueError, match="no valid"):
+        load_ref_auto(p)
 
 
 def test_detect_and_load_unpadded_secondless_dates(tmp_path):

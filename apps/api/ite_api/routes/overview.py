@@ -91,8 +91,10 @@ def get_overview(
     pass_count = sum(1 for r in all_results_30d if r.verdict == "pass")
     fail_count = sum(1 for r in all_results_30d if r.verdict == "fail")
     adj_count = sum(1 for r in all_results_30d if r.verdict == "adjusted")
-    total_results = len(all_results_30d)
-    pass_rate = (pass_count / total_results) if total_results > 0 else None
+    # Invalid results have no measured pass/fail outcome — excluded from the
+    # denominator so the rate isn't diluted by results we couldn't measure at all.
+    measured_results = sum(1 for r in all_results_30d if r.verdict != "invalid")
+    pass_rate = (pass_count / measured_results) if measured_results > 0 else None
 
     recent_5 = recent_runs_rows[:5]
     recent_run_out = []

@@ -9,6 +9,11 @@ Per target temperature (default {-40, 5, 40} °C) within a time window:
      b. Find the reference reading closest in time to cal_ts → new_ref_val.
      c. If |cal_val - new_ref_val| <= TOLERANCE → use (new_ref_val, cal_val).
      d. Otherwise, fall back to searching for ANY ref within ±TOLERANCE of cal_val.
+     e. If nothing in the whole window is ever within tolerance of cal_val, there is no
+        valid reference reading for this target — return ref_value=None. Callers MUST
+        treat that as "no match", never substitute the target temperature as a fake
+        reading (that was a real bug: it fabricated pass/fail verdicts against readings
+        that were never actually measured).
 """
 
 from datetime import datetime
@@ -67,12 +72,12 @@ def find_values_for_target(
     cal_subset = _window(cal_df, time_start, time_end)
     ref_subset = _window(ref_df, time_start, time_end)
     if cal_subset.empty or ref_subset.empty:
-        return target, None, False
+        return None, None, False
 
     # Step 1
     ref_val, ref_ts = find_reference_value(ref_subset, target, time_start, time_end)
     if ref_val is None:
-        return target, None, False
+        return None, None, False
 
     # Step 2
     near = cal_subset.loc[(cal_subset.temp - ref_val).abs() <= TOLERANCE].copy()
@@ -100,4 +105,4 @@ def find_values_for_target(
         k = broad["diff"].idxmin()
         return float(broad.loc[k, "temp"]), cal_val, True
 
-    return target, cal_val, True
+    return None, cal_val, False

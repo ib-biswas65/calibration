@@ -7,8 +7,8 @@ export interface AuthMe {
   role: Role;
 }
 
-export type RunStatus = "draft" | "processing" | "complete" | "failed";
-export type Verdict = "pass" | "fail" | "adjusted";
+export type RunStatus = "draft" | "processing" | "complete" | "partial" | "failed";
+export type Verdict = "pass" | "fail" | "adjusted" | "invalid";
 
 export interface SetpointConfig {
   target_c: number;
@@ -31,6 +31,7 @@ export interface LoggerResult {
   max_deviation_c: number | null;
   cert_no: string | null;
   per_setpoint: PerSetpoint[];
+  failure_reason: string | null;
 }
 
 export interface ReferenceFile {

@@ -33,6 +33,11 @@ def load_calibration_sheet(wb, sheet_name: str) -> pd.DataFrame:
         except (ValueError, TypeError):
             continue
         rows.append((ts, temp))
+    if not rows:
+        raise ValueError(
+            f"Sheet '{sheet_name}' has no valid data rows — expected a timestamp in "
+            "column B and a temperature in column D from row 2 onward."
+        )
     df = pd.DataFrame(rows, columns=["timestamp", "temp"])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["temp"] = df["temp"].astype(float)

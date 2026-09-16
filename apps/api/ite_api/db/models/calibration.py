@@ -94,6 +94,9 @@ class LoggerResult(Base):
     per_setpoint: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     cert_no: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     cert_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Set when verdict == "invalid": why no certificate could be generated
+    # (e.g. no reference reading within tolerance for one or more setpoints).
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

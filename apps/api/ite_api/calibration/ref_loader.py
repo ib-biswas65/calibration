@@ -94,6 +94,11 @@ def load_ref_auto(path: Path) -> pd.DataFrame:
             parsed = _parse_line(line, fmt)
             if parsed is not None:
                 rows.append(parsed)
+    if not rows:
+        raise ValueError(
+            f"Detected format '{fmt}' for {path}, but no valid data rows could be "
+            "parsed from it. The file may be malformed or use an unexpected layout."
+        )
     df = pd.DataFrame(rows, columns=["timestamp", "temp"])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df["temp"] = df["temp"].astype(float)

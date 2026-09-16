@@ -61,7 +61,25 @@ def test_step2_direct_match():
     assert adjusted is False
 
 
-def test_step3_fallback_when_no_direct_match():
+def test_step3d_broad_search_still_adjusted():
+    """Step 3b/c fails (cal reading isn't near the ref closest to it in time), but a
+    DIFFERENT ref reading elsewhere in the window is within tolerance of cal_val — 3d succeeds."""
+    base = datetime(2026, 4, 14, 10, 0, 0)
+    end = base + timedelta(minutes=10)
+    ref = _df([(base, 5.0), (base + timedelta(minutes=9), 7.1)])
+    cal = _df([(base, 7.0)])
+    ref_v, cal_v, adjusted = find_values_for_target(
+        cal, ref, target=5.0, time_start=base, time_end=end
+    )
+    assert adjusted is True
+    assert ref_v == pytest.approx(7.1)
+    assert cal_v == 7.0
+
+
+def test_no_reference_within_tolerance_anywhere_returns_no_match():
+    """The exact bug scenario: cal has a reading, but no ref reading in the whole window
+    is ever within TOLERANCE of it. Must NOT fabricate the target as a fake ref reading —
+    must signal "no match" so the caller can flag this result instead of certifying it."""
     base = datetime(2026, 4, 14, 10, 0, 0)
     end = base + timedelta(minutes=10)
     ref = _df([(base, 5.0)])
@@ -69,11 +87,12 @@ def test_step3_fallback_when_no_direct_match():
     ref_v, cal_v, adjusted = find_values_for_target(
         cal, ref, target=5.0, time_start=base, time_end=end
     )
-    assert adjusted is True
+    assert ref_v is None
     assert cal_v == 7.0
+    assert adjusted is False
 
 
-def test_empty_window_returns_target_as_ref():
+def test_empty_window_returns_no_match():
     base = datetime(2026, 4, 14, 10, 0, 0)
     end = base + timedelta(minutes=10)
     ref = _df([])
@@ -81,6 +100,6 @@ def test_empty_window_returns_target_as_ref():
     ref_v, cal_v, adjusted = find_values_for_target(
         cal, ref, target=5.0, time_start=base, time_end=end
     )
-    assert ref_v == 5.0
+    assert ref_v is None
     assert cal_v is None
     assert adjusted is False

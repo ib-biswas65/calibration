@@ -5,10 +5,12 @@ const LABELS: Record<string, string> = {
   draft: "Draft",
   processing: "Processing",
   complete: "Complete",
+  partial: "Partial",
   failed: "Failed",
   pass: "Pass",
   fail: "Fail",
   adjusted: "Adjusted",
+  invalid: "Invalid",
 };
 
 interface Props {
