@@ -3,7 +3,7 @@ import { Check, ChevronRight, Download, LayoutGrid, List, Pencil, RefreshCw, X }
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../api/client";
-import type { LoggerResult, RunDetail } from "../api/types";
+import { isFailingVerdict, type LoggerResult, type RunDetail } from "../api/types";
 import { SortIcon, type SortDir } from "../components/SortIcon";
 import { StatusPill } from "../components/StatusPill";
 import { useToast } from "../components/Toast";
@@ -33,7 +33,7 @@ function DevBar({ value, withinTol }: { value: number | null; withinTol: boolean
 }
 
 function CertCard({ result, runId }: { result: LoggerResult; runId: string }) {
-  const isFail = result.verdict === "fail" || result.verdict === "invalid";
+  const isFail = isFailingVerdict(result.verdict);
   return (
     <div className={`${styles.card} ${isFail ? styles.cardFail : ""}`}>
       <div className={styles.cardTop}>
@@ -483,7 +483,7 @@ export function RunDetailPage() {
                   <tr><td colSpan={5 + (run.results[0]?.per_setpoint.length ?? 0)} className={styles.empty}>No results match</td></tr>
                 ) : (
                   filtered.map((r) => {
-                    const isBad = r.verdict === "fail" || r.verdict === "invalid";
+                    const isBad = isFailingVerdict(r.verdict);
                     return (
                     <tr key={r.id} className={isBad ? styles.rowFail : styles.rowPass}>
                       <td className={`${styles.certNoCell} ${isBad ? styles.certNoFail : ""}`}>
