@@ -1,64 +1,66 @@
 # Handoff
 
 ## State
-`main` is at `276bd26` (config files + implementation plan committed and
-pushed). Two feature branches are rebased on top of it and **each has an
-independent subagent verifying it and opening a PR right now** (not merged —
-see In flight): `fix/migration-0008-revision-length` (the critical fresh-DB
-migration bootstrap fix) and `feat/ite-brand-redesign` (the full ITE brand
-redesign + WCAG contrast fix). The implementation plan at
-`docs/superpowers/plans/2026-09-16-post-redesign-implementation-plan.md`
-has all 10 of its original open questions resolved and recorded in its own
-"resolved" section — read that before re-asking any of them.
+`main` is at `3b62e3e`, clean, pushed. The implementation plan
+(`docs/superpowers/plans/2026-09-16-post-redesign-implementation-plan.md`)
+is now the single authoritative source for what's next — it has all 10
+original open questions resolved, plus the reconciled "Upcoming
+calibrations" fix design (root cause: `Logger.next_due_at` is never written
+by any automated code path, confirmed and fully designed, not just
+diagnosed) and a new Phase 6 tracking carried-over scope from an older
+unmerged plan (archive/restore, admin audit trail, New Calibration UX,
+Overview overhaul, Loggers page, PDF export — lower priority, not yet
+scheduled).
 
-**Mid-execution, a real discovery changed the plan**: the "Upcoming
-calibrations shows nothing" bug the user reported has a confirmed root
-cause, found in an unmerged prior planning doc
-(`origin/claude/calibration-ui-overhaul-plan-6uo67q`, dated 2026-08-17) —
-`Logger.next_due_at` is never written by any automated code path, so the
-column is NULL fleet-wide. That same doc also covers cert_no uniqueness
-(overlaps this session's Phase 2.1) and other unscoped work. A second
-unmerged branch, `origin/add-otel-instrumentation` (committed *today* under
-the user's own identity), explains the "opentelemetry undeclared dependency"
-item from earlier in the day — it's not a bug on `main`, just unmerged.
-**Two questions were posed to the user about these and are unanswered as of
-this handoff** — see Open questions.
+**Two PRs are open and independently verified, awaiting user review/merge**:
+- [PR #5](https://github.com/ib-biswas65/calibration/pull/5) — the critical
+  migration-0008 fix (fresh-DB bootstrap bug). Re-verified from scratch
+  against a real Postgres by the agent that opened it: all 8 migrations
+  apply in one transaction, all 10 tables present, `alembic_version` correct,
+  29/29 tests pass.
+- [PR #6](https://github.com/ib-biswas65/calibration/pull/6) — the ITE brand
+  redesign + WCAG contrast fix. Every contrast ratio independently
+  recomputed (not trusted from the original claim): 4.34–17.02:1, all pass.
+  Two non-blocking nits noted in the PR body (dead CSS in
+  `AdminUsersPage.module.css`, a `DESIGN.md`/token-name mismatch).
+
+This is the first work done under the session's newly-adopted PR-per-change
+policy for `apps/` — neither PR was self-merged, both are waiting on a real
+review after a gap, per the `dev-pipeline` skill's own guidance.
+
+**An unclaimed branch exists and must NOT be touched without the user's
+say-so**: `origin/add-otel-instrumentation`, committed today under the
+user's own git identity (adds opt-in OpenTelemetry tracing), but the user
+said "I don't know about that branch" when asked. Do not merge, review, or
+build on it until the user identifies where it came from.
 
 ## Next steps
-- (since 2026-09-16) Check on the two in-flight subagents (migration-fix PR,
-  redesign PR) — they were dispatched with `isolation: worktree`, each
-  independently re-verifying (contrast ratios recomputed from scratch,
-  fresh Postgres migration run, full test/build) before opening its PR.
-  Review both PRs once open; do not self-merge without a gap, per this
-  session's own dev-pipeline findings about direct-push habits.
-- (since 2026-09-16) Once Phase 0 lands: re-run `/handoff` to fold the PR
-  outcomes in, then move to Phase 1 (lint fix → app-boots-outside-Docker →
-  fixture collision → CI green → branch protection), per the plan doc.
-- (since 2026-09-16) Reconcile the old UI-overhaul plan
-  (`claude/calibration-ui-overhaul-plan-6uo67q`) into the current plan doc
-  once the user answers whether to — the Upcoming fix and cert_no design
-  already exist there in detail, don't re-derive them.
+- (since 2026-09-16) **Review and merge PR #5 first** (it's small, critical,
+  and next week's Windows PC migration depends on it being on `main` before
+  then).
+- (since 2026-09-16) **Review and merge PR #6** — read its two noted nits
+  before merging; neither blocks, but confirm you agree.
+- (since 2026-09-16) Once both land, start Phase 1 of the implementation
+  plan (pay down the 22 ruff lint errors → make the app boot outside Docker
+  → fix the `conftest.py`/Alembic test collision → confirm CI green → branch
+  protection + secrets-scan + style-check + Dependabot). User already
+  decided: fix lint now, don't defer.
+- (since 2026-09-16) The Upcoming-bug fix (Phase 4) is now fully scoped and
+  ready to implement — no longer blocked on investigation.
+- (since 2026-09-16) Figure out where `add-otel-instrumentation` came from
+  (check other Claude sessions/devices) before deciding whether to review
+  or merge it.
 - (since 2026-09-15) Windows PC migration (`docs/MIGRATION.md`): GH issue #4
   (certificate-volume dry-run) still awaiting the collaborator; 8 logistics
   questions remain, most load-bearing is new-PC internet access.
 
 ## Open questions
-- (since 2026-09-16) **Reconcile plans?** Merge the old UI-overhaul plan's
-  Upcoming/cert_no design into today's implementation plan, or keep them
-  separate? Asked, not yet answered.
-- (since 2026-09-16) **`add-otel-instrumentation` branch** — is this the
-  user's own in-progress work (leave alone), or ready for review/merge?
-  Asked, not yet answered.
+- (since 2026-09-16) None blocking — both prior open questions (plan
+  reconciliation, otel branch) were answered this session. Next real
+  decision point is simply "review and merge PR #5/#6."
 - (since 2026-09-15) See `docs/MIGRATION.md`'s own open-questions section
   (unrelated workstream).
 
 ## In flight
-- Branch `fix/migration-0008-revision-length` — 1 commit, rebased on
-  `main`, being independently verified + PR'd by a worktree-isolated
-  subagent. Not pushed by the time of this handoff (agent does that itself
-  once it independently confirms the fix).
-- Branch `feat/ite-brand-redesign` — 1 commit, rebased on `main`, same
-  treatment, separate subagent.
-- A stray `.claude/worktrees/` directory may appear/disappear as these
-  agents run — that's the harness's own workspace for them, not something
-  to commit or clean up manually.
+(none — working tree clean, `main` matches `origin/main`, no worktree
+agents currently running)
