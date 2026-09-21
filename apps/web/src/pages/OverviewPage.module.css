@@ -20,7 +20,9 @@
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--s-4);
+  border-top: 2px solid var(--c-border-strong);
+  border-left: 2px solid var(--c-border-strong);
+  gap: 0;
 }
 @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px)  { .tiles { grid-template-columns: 1fr; } }
@@ -38,7 +40,7 @@
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
-  padding: var(--s-5);
+  padding: var(--s-2);
   min-height: 220px;
   display: flex;
   flex-direction: column;
@@ -48,12 +50,12 @@
 .rails > :nth-child(2) { animation-delay: 280ms; }
 
 .railTitle {
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--c-text-mute);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin: 0 0 var(--s-4);
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
 }
 
 .list { list-style: none; margin: 0; padding: 0; flex: 1; }
@@ -62,7 +64,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--s-3) 0;
+  padding: 5px 0;
   border-bottom: 1px solid var(--c-border);
   cursor: pointer;
   gap: var(--s-3);
@@ -70,7 +72,7 @@
   animation: staggerIn 350ms var(--ease-out) both;
 }
 .item:last-child { border-bottom: none; }
-.item:hover { background: var(--c-accent-50); margin: 0 calc(-1 * var(--s-5)); padding: var(--s-3) var(--s-5); }
+.item:hover { background: var(--c-accent-50); margin: 0 calc(-1 * var(--s-2)); padding: 5px var(--s-2); }
 
 /* Stagger list items — offset from the rail's own delay */
 .list > :nth-child(1) { animation-delay: 280ms; }
