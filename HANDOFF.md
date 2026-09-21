@@ -4,6 +4,19 @@
 `main` is at `ba80c48`, clean, matches origin. Zero open PRs, zero unmerged
 feature branches other than the still-unclaimed `origin/add-otel-instrumentation`.
 
+**The Direction C dense redesign is done.** All 12 tasks of
+`docs/superpowers/plans/2026-09-21-direction-c-dense-redesign-implementation-plan.md`
+are complete and reviewed clean (3 needed one small fix round each —
+`.sidebarClose` mobile contrast, `.button` hover color, `RunDetailPage`
+`.headingInput` focus state — see
+[logs/DAILY-2026-09-21.md](logs/DAILY-2026-09-21.md) for detail). Work lives
+in worktree `.claude/worktrees/direction-c-redesign` (branch
+`worktree-direction-c-redesign`), not yet merged to `main`. `tsc`, `vitest`
+(15/15), and `vite build` are all green as of the final check. This branch
+is ready for a final whole-branch review and merge decision — that has not
+happened yet and is not something this session did; it's the next step for
+whoever picks this up.
+
 **The local Docker dev stack is still running** (2+ days), still with the
 real verified production data loaded from GH issue #2's 2026-09-15 snapshot.
 Not torn down — the user hasn't said either way.
@@ -48,6 +61,10 @@ The implementation plan
 remains the authoritative source for what's next on the engineering side.
 
 ## Next steps
+- (since 2026-09-21) **Review and merge the Direction C dense redesign
+  branch** (`worktree-direction-c-redesign`, worktree
+  `.claude/worktrees/direction-c-redesign`) — the whole-branch review this
+  session did not do, then decide on merge into `main`.
 - (since 2026-09-18) **Decide how to handle the 396 questionable "pass"
   verdicts** — reprocess the 6 affected runs' reference files through the
   fixed `matcher.py` to see which actually hold up, then decide whether any
@@ -87,18 +104,10 @@ remains the authoritative source for what's next on the engineering side.
   containers `ite-calibration-{postgres,api,web,edge}-1`, up 2+ days) with
   the real verified production dump loaded.
 - No open PRs; `add-otel-instrumentation` still unclaimed.
-- (since 2026-09-21) **Direction C dense redesign in progress via
-  subagent-driven-development**, executing
-  `docs/superpowers/plans/2026-09-21-direction-c-dense-redesign-implementation-plan.md`
-  (approved from the "ITE Calibration — Redesign Mockups" canvas,
-  `https://claude.ai/artifact/4xN8SVQW3YJwSj4TJTe6cF`, row C tightened
-  twice for density). Working in worktree
+- (since 2026-09-21) **Direction C dense redesign branch awaiting final
+  review and merge** — implementation itself is done (see State above), the
+  only thing left in flight is the merge decision. Worktree
   `.claude/worktrees/direction-c-redesign` (branch
-  `worktree-direction-c-redesign`), ledger at
-  `.superpowers/sdd/2026-09-21-direction-c-dense-redesign-implementation-plan/progress.md`.
-  Task 1/12 (DESIGN.md rewrite) implemented, commit `956241c`, task review
-  in flight. If a session picks this up cold: read the ledger first, it
-  tracks which tasks are actually complete — do not re-dispatch a task the
-  ledger already marks `complete`. Real `/handoff` with `PROGRESS.md`/log
-  entries happens at Task 12, once the branch is finished and reviewed —
-  this note is a placeholder for mid-plan interruption only.
+  `worktree-direction-c-redesign`) still exists; ledger at
+  `.superpowers/sdd/2026-09-21-direction-c-dense-redesign-implementation-plan/progress.md`
+  shows all 12 tasks complete.
