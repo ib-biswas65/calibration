@@ -104,7 +104,9 @@
   min-width: 240px;
   width: 100%;
   max-width: 560px;
+  transition: border-bottom-width 0.15s, background 0.15s;
 }
+.headingInput:focus { border-bottom-width: 3px; background: var(--c-accent-50); }
 
 .editConfirmBtn {
   display: inline-flex;
