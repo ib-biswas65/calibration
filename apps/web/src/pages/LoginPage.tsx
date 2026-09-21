@@ -47,13 +47,22 @@ export function LoginPage() {
 
   return (
     <main className={styles.wrap}>
+      <aside className={styles.brandPanel}>
+        <div>
+          <span className={styles.brandPanelTitle}>ITE<br />Calibration</span>
+          <div className={styles.brandPanelRule} />
+          <p className={styles.brandPanelTagline}>
+            Traceable temperature calibration records for the fleet. Sign in with your lab credentials.
+          </p>
+        </div>
+      </aside>
       <form
         className={`${styles.card} ${leaving ? styles.cardLeaving : ""}`}
         onSubmit={handleSubmit(onSubmit)}
         noValidate
       >
         <h1 className={`${styles.title} ${leaving ? styles.titleLeaving : ""}`}>
-          ITE Calibration
+          Sign in
         </h1>
         <p className={styles.subtitle}>Sign in to continue</p>
 

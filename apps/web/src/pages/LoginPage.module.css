@@ -1,19 +1,62 @@
 .wrap {
-  display: grid;
-  place-items: center;
   min-height: 100vh;
-  background: var(--c-bg);
-  padding: var(--s-5);
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  background: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .wrap { grid-template-columns: 1fr; }
+}
+
+.brandPanel {
+  display: none;
+  border-right: 2px solid var(--c-border-strong);
+  align-items: center;
+  padding: 0 56px;
+}
+@media (min-width: 769px) {
+  .brandPanel { display: flex; }
+}
+
+.brandPanelTitle {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: var(--c-text);
+}
+
+.brandPanelRule {
+  margin-top: 20px;
+  height: 2px;
+  width: 48px;
+  background: var(--color-brand-electric);
+}
+
+.brandPanelTagline {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--c-text-soft);
+  line-height: 1.5;
+  max-width: 280px;
 }
 
 .card {
-  width: 100%;
+  width: 340px;
   max-width: 400px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
   padding: var(--s-8) var(--s-6);
   animation: scaleIn 400ms var(--ease-out) both;
+  /* flex-direction: column added (not in brief's literal snippet) so the
+     stacked form fields don't lay out as a row — align-items/justify-content
+     then center the (shrink-to-fit) title/links and vertically center the
+     whole stack within the right-hand grid column, matching the brief's
+     intent of a plain centered form with no card chrome */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .cardLeaving {
@@ -22,9 +65,10 @@
 
 .title {
   font-family: var(--font-heading);
-  font-size: 28px;
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--color-boardroom-navy);
   margin: 0 0 var(--s-2);
   display: inline-block;
@@ -59,10 +103,9 @@
 }
 .input {
   width: 100%;
-  padding: 11px 0;
   border: none;
-  border-bottom: 1.5px solid var(--color-input-border);
-  border-radius: var(--radius-input);
+  border-bottom: 1px solid var(--c-border-strong);
+  padding: 6px 0;
   font-size: 15px;
   background: transparent;
   color: var(--c-text);
@@ -82,10 +125,12 @@
   position: absolute;
   inset: 0;
   width: 100%;
-  background: var(--color-brand-electric);
+  background: var(--color-boardroom-navy);
+  border: 2px solid var(--color-boardroom-navy);
   color: #fff;
-  border: none;
-  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
