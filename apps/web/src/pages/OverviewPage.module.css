@@ -103,7 +103,7 @@
   text-align: center;
 }
 .emptyLabel { font-size: 14px; font-weight: 500; color: var(--c-text-mute); }
-.emptySub { font-size: 12px; color: var(--c-text-mute); opacity: 0.7; }
+.emptySub { font-size: 12px; color: var(--c-text-mute); }
 
 .loading { padding: var(--s-6); color: var(--c-text-mute); }
 

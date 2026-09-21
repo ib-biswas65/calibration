@@ -66,6 +66,7 @@
   color: var(--c-text);
   outline: none;
 }
+.field select:focus { border-bottom-color: var(--color-brand-electric); }
 
 /* ── Setup URL box ────────────────────────────────────────────────── */
 .setupUrl {
