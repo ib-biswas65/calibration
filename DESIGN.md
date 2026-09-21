@@ -1,118 +1,139 @@
 # Design system — ITE Calibration
 
-Approved 2026-09-16. Visual mockup: see the "Calibration Redesign" artifact
-referenced in that session's chat (Overview / History / Run Detail screens).
+Approved 2026-09-21 (supersedes the 2026-09-16 "institutional-clinical
+glass" pass). Visual mockup: the "ITE Calibration — Redesign Mockups"
+canvas, row C ("Index"), tightened twice for density —
+https://claude.ai/artifact/4xN8SVQW3YJwSj4TJTe6cF
 
 ## Why this exists
 
-The app's previous palette (`--color-boardroom-navy`, `--color-brand-electric`,
-etc. in `apps/web/src/theme/tokens.css`) was labeled "Officevibe brand
-palette" in a code comment — a placeholder that was never swapped for ITE's
-actual identity. This document replaces it with ITE's real, confirmed
-branding.
+The 2026-09-16 glass redesign was reviewed against two other directions
+(a dense enterprise-BI style and a rounded Fluent-style) via a mockup
+canvas. The user picked Direction C — "Index" — explicitly requesting it
+denser than first drawn. This document replaces the glass system with
+that flat, high-contrast, Swiss-minimal direction.
 
 ## Identity
 
-**Institutional-clinical glass.** Translucent panels over a warm neutral
-ground with faint color-pool ambient gradients in the brand's four accent
-hues. Reads as credible/scientific (fits a calibration lab tool measuring
-against traceable standards) without being cold.
+**Swiss minimal, high contrast, dense.** Flat black-on-white, no blur, no
+shadows, no rounded corners. Structure comes from rules (1–2px borders),
+not cards. A single accent color (the brand green) used sparingly — for
+links, the active nav marker, and primary actions — not spread across the
+UI. Large mono numerals for key stats. Reads as precise and serious, in
+keeping with a calibration lab issuing traceable certificates.
 
 ## Brand
 
-ITE's corporate mark is a green droplet/leaf icon, paired with a four-color
-accent quartet — **red, amber, blue, green**, always in that order — confirmed
-live on icebattery.jp and independently matched in two other shipped ITE
-products (`logger-app-ibtrace`, `carbon-dashboard`). This app adopts the same
-mark and quartet.
+Unchanged from the 2026-09-16 pass: ITE's corporate mark (green
+droplet/leaf icon) plus the red/amber/blue/green accent quartet, still
+shown as a decorative stripe. Only the green (`#0f6b26`, already
+darkened for contrast) is used as a functional UI accent; the other three
+stay decorative/status-only.
 
 ## Tokens
 
-Same **variable names** as today's `tokens.css` (so no CSS Module needs
-touching for the palette swap itself, only the `:root` values) plus a small
-set of new glass/ambient tokens.
+Same **variable names** as today's `tokens.css` — only `:root` values
+change.
 
 ```css
-/* Retint existing names. Values are darkened from the brand kit's literal
-   hex (#179e38 green, #fab72b amber, #1fa9c9 blue, #e83f3a red) — the raw
-   brand hues only clear WCAG AA (4.5:1) as large/decorative elements, not
-   as button/link/pill text on these light glass surfaces. Full contrast
-   audit (before/after ratios) done 2026-09-16; the raw brand green is
-   still used verbatim for the decorative logo mark and the accent-quartet
-   stripe in Sidebar.tsx, since those aren't text. */
---color-boardroom-navy:  #17181a;   /* was navy #0c1754 — now the sidebar ink */
---color-brand-electric:  #0f6b26;   /* brand green, darkened for text/button contrast */
---color-feedback-yellow: #835408;   /* amber, darkened — raw #fab72b was 1.5:1 as text */
---color-accent-orange:   #ad2823;   /* red — reused for fail/error, darkened */
---color-lilac-accent:    #eaf3ec;   /* soft green-tinted neutral, was lilac */
+--color-boardroom-navy:  #0a0a0a;   /* was sidebar-ink dark navy — now heading/primary text black */
+--color-brand-electric:  #0f6b26;   /* unchanged — brand green, already audited */
+--color-feedback-yellow: #835408;   /* unchanged — audited warn color */
+--color-accent-orange:   #ad2823;   /* unchanged — audited fail color; do NOT swap in the mockup's unaudited #a92a22 */
+--color-lilac-accent:    #f7f7f5;   /* was soft green tint — now a neutral hover-row tint */
 
---c-bg:        #eceee6;   /* warm neutral ground (was #f9f8f6) */
---c-surface:   rgba(255,255,255,.66);   /* glass, was opaque white */
---c-border:    rgba(25,23,24,.09);      /* hairline, was solid light-gray */
---c-text:      #191718;
---c-text-soft: #4a4d47;
---c-text-mute: #5f645b;   /* darkened — #7a7f76 was 3.50:1, below the 4.5:1 floor */
+--c-bg:        #ffffff;   /* was warm neutral #eceee6 — now pure white */
+--c-surface:   #ffffff;   /* was translucent glass — now opaque white, no blur anywhere */
+--c-surface-strong: #ffffff;
+--c-border:    #e2e2e2;   /* hairline row/cell separator, was a black-tinted rgba hairline */
+--c-border-strong: #0a0a0a;  /* NEW — 2px structural rules: sidebar edge, header edge, stat-grid edges */
+--c-text:      #0a0a0a;
+--c-text-soft: #3a3a3a;
+--c-text-mute: #6e6e6e;
 
---c-pass: #0f6b26;
---c-warn: #835408;   /* used for both "adjusted" and the new "invalid"/"partial" states */
---c-fail: #ad2823;
---c-info: #136679;   /* blue accent, wasn't semantically used before */
+--c-pass: #0f6b26;   /* unchanged, already audited */
+--c-warn: #835408;   /* unchanged, already audited */
+--c-fail: #ad2823;   /* unchanged, already audited */
+--c-info: #136679;   /* unchanged, already audited */
 
-/* New: glass + ambient */
---glass-strong: rgba(255,255,255,.82);
---glass-border: rgba(255,255,255,.75);
---ambient-green: rgba(23,158,56,.16);
---ambient-blue:  rgba(31,169,201,.15);
---ambient-amber: rgba(250,183,43,.14);
---ambient-red:   rgba(232,63,58,.09);
+/* Ambient gradients removed entirely — Direction C is flat white, no
+   color pools. The four --ambient-* tokens and the .main background-image
+   gradient stack that consumed them are deleted, not just zeroed, so
+   nothing pays their paint cost. */
 ```
 
-**Contrast rule for this palette**: any of these four status hues used as
-*text* (pill labels, `.dueWarn`, `StatTile`'s `.warn`/`.pass`/`.fail`
-variants) must use the darkened token value above, never the raw brand hex
-from the "Brand" section. The raw hex is for decorative/large elements only
-(the logo mark, the accent-quartet stripe, anything ≥24px bold where the
-3:1 large-text floor applies instead of 4.5:1).
+**Radius**: every radius token (`--radius-input`, `--radius-sm`,
+`--radius-md`, `--radius-badge`, `--radius-card`, `--radius-lg`,
+`--radius-pill`) becomes `0`. Nothing in this UI is rounded.
 
-Radii, spacing (`--s-*`), and easing/transition tokens are unchanged — the
-layout rhythm already matches this direction, only color and surface
-treatment change.
+**Shadows**: `--shadow-1` and `--shadow-2` become `none`. No elevation —
+structure comes from borders only.
+
+**Contrast rule for this palette**: identical rule to the 2026-09-16
+pass — any of the four status hues used as text must use the token
+value above, never a raw brand hex. Since the ground is now pure white
+(harder to fail against than the old translucent glass), if any new
+usage needs checking, re-verify at 4.5:1 against `#ffffff` specifically,
+not against the old glass-surface numbers.
 
 ## Typography
 
-- UI/body: **Instrument Sans** (replaces Inter) — `--font-sans`, `--font-heading`.
+- UI/body/headings: **Archivo** (replaces Instrument Sans) —
+  `--font-sans`, `--font-heading`. Weights 400–900 loaded (headings lean
+  on 700–900, dense uppercase labels use 700 with `letter-spacing`).
 - Numeric/technical data (cert numbers, logger serials, temperatures,
-  deviations): **JetBrains Mono** (replaces the generic `ui-monospace` stack)
-  — `--font-mono`. Anywhere digits line up in a column, pair with
+  deviations, dates in tables): **Space Mono** (replaces JetBrains
+  Mono) — `--font-mono`. Anywhere digits line up in a column, pair with
   `font-variant-numeric: tabular-nums`.
-- Load both from Google Fonts in `index.html`.
+- Load both from Google Fonts in `apps/web/index.html`, replacing the
+  existing `Instrument+Sans`/`JetBrains+Mono` `css2` link.
+- Dense uppercase labels (column headers, nav item micro-labels, form
+  labels) use `text-transform: uppercase; letter-spacing: 0.04–0.06em`
+  at 10.5–12px — this is a recurring pattern across every screen in the
+  mockup, not a one-off.
 
 ## Component patterns
 
-- **Glass surface**: any element currently using `background: var(--c-surface)`
-  (`StatTile`, `DataTable` wrapper, `ConfirmDialog`, `FileDropZone`) adds
-  `backdrop-filter: blur(16px)` (`-webkit-backdrop-filter` too) so the
-  translucency actually reads against the ambient ground behind it.
-- **Ambient ground**: the main content area (`AppShell`'s `.main`) gets four
-  low-opacity radial gradients in the brand quartet, anchored near the
-  corners, `background-attachment: fixed` so they don't scroll with content.
-  Without this, glass panels read as flat gray, not translucent.
-- **Status pills**: dot-style — a small colored dot + label, not a solid-fill
-  badge. One consistent color mapping across every screen: pass/complete →
-  green, fail/failed → red, adjusted/invalid/partial → amber, processing →
-  blue (pulsing dot), draft → neutral.
-- **Sidebar**: dark ink gradient panel (`--color-boardroom-navy` → a slightly
-  lighter shade), for wayfinding contrast against the light glass content —
-  this is the one place full boldness is spent; the rest of the UI stays
-  quiet.
-- **Div-tables**: header row + data rows pattern already in use (`DataTable`,
-  the runs/results lists) — keep the pattern, just retint through the tokens
-  above.
+- **No glass, no blur**: every `backdrop-filter`/`-webkit-backdrop-filter`
+  declaration in the codebase is deleted (see Task 3). Surfaces are flat
+  `#ffffff`.
+- **Structural rules over cards**: a "card" in the old system (StatTile,
+  DataTable wrapper, ConfirmDialog) loses its border-radius, shadow, and
+  independent border in favor of shared 1–2px rules with its neighbors —
+  e.g. the Overview stat tiles share a top+left border on the grid
+  container and each cell adds only its own right+bottom edge, so
+  adjacent tiles don't double up their border.
+- **Status pills**: no more dot + tinted badge. Verdicts/statuses render
+  as plain uppercase `--font-mono` text in the semantic color (pass
+  green, fail red, warn amber, info blue), no background fill, no
+  border-radius.
+- **Sidebar**: flat white, no dark ink panel. A 2px solid
+  `--c-border-strong` right edge separates it from content. Nav items are
+  plain text links with `padding: 3px 12px`; the active item gets a 3px
+  solid `--color-brand-electric` left border plus bold text — no filled
+  background.
+- **Topbar/header**: dense (30–36px tall, was 56px), 2px solid
+  `--c-border-strong` bottom edge, no blur, no translucency.
+- **Tables (div-tables and `<table>` alike)**: header row uses a 2px
+  solid `--c-border-strong` bottom rule (not a card border); body rows
+  use a 1px `--c-border` hairline; cell padding drops to 4–6px vertical
+  (was 12px) — this is the single biggest density change from the
+  2026-09-16 system.
+- **Buttons/links**: primary actions can stay solid-fill (black or
+  brand green) but square-cornered (radius 0, inherited from the token
+  change); secondary actions read as plain uppercase text links,
+  matching the mockup's "Export CSV" / "+ New calibration" treatment on
+  the History page.
 
 ## What's out of scope for this pass
 
-- Dark theme — the reference system (ITE's `carbon-dashboard`) has none built
-  yet either; revisit as a separate decision, not assumed as part of this
-  refresh.
+- Dark theme — still not built (same note as 2026-09-16).
 - Information architecture — sidebar nav items and page structure are
-  unchanged; this is a visual refresh, not a redesign of what exists where.
+  unchanged; this is a visual redesign, not a restructuring of what
+  exists where.
+- Per-page bespoke layouts beyond what shared components and tokens
+  already produce, for the eight pages not explicitly mocked (Loggers,
+  Upcoming, Settings, Logger Profile, New Calibration, Certificate,
+  Admin Users, Register/Reset Password) — Task 10 only sweeps for
+  leftover hardcoded glass-era values, it does not redesign these pages'
+  layouts from scratch.
