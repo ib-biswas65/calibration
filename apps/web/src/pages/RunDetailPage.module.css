@@ -267,7 +267,7 @@
   cursor: pointer;
   transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.filterPill:hover { border-color: var(--c-accent-300); color: var(--c-accent-500); }
+.filterPill:hover { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
 .filterActive {
   border-color: var(--color-brand-electric);
   color: var(--color-brand-electric);
@@ -306,8 +306,6 @@
 /* ── Table view ───────────────────────────────────────────────────── */
 .tableWrap {
   background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -389,21 +387,23 @@
   gap: var(--s-4);
 }
 
+/* .cardGrid uses `gap: var(--s-4)` (unlike the Overview stat tiles, which
+   are gap:0 and share a continuous lattice frame) — a right+bottom-only
+   border here would float as a disconnected L-bracket per card, so this
+   card keeps a full flat 1px border instead (radius already resolves to
+   0 via tokens.css, so it stays flat/square either way). */
 .card {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
   padding: var(--s-2);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+  transition: border-color var(--transition-base);
   animation: scaleIn 320ms var(--ease-out) both;
 }
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-2);
-  border-color: var(--c-accent-300);
+  border-color: var(--color-brand-electric);
 }
 
 /* Stagger first 12 cards */

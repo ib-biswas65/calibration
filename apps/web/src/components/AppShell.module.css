@@ -48,7 +48,7 @@
   color: var(--c-text-soft);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 0;
   transition: color var(--transition-fast);
 }
 .sidebarClose:hover { color: var(--color-brand-electric); }
@@ -137,7 +137,7 @@
   cursor: pointer;
   color: var(--c-text-mute);
   padding: 6px;
-  border-radius: 6px;
+  border-radius: 0;
   transition: color var(--transition-fast);
   margin-right: auto;
 }
@@ -166,7 +166,6 @@
     z-index: 500;
     transform: translateX(-100%);
     transition: transform var(--transition-base);
-    box-shadow: var(--shadow-2);
     animation: none;
   }
   .sidebarOpen { transform: translateX(0); }

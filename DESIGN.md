@@ -91,6 +91,13 @@ not against the old glass-surface numbers.
   labels) use `text-transform: uppercase; letter-spacing: 0.04–0.06em`
   at 10.5–12px — this is a recurring pattern across every screen in the
   mockup, not a one-off.
+- **Primary page headings** (the `<h1>`-equivalent at the top of a page,
+  e.g. History, Run Detail, Overview): `15px / weight 800 / uppercase /
+  0.04em letter-spacing`, `--font-heading`, `--color-boardroom-navy`.
+  Login's equivalent is `13px/800/uppercase` — same pattern, smaller for
+  its narrower context. Every page carrying this treatment applies it
+  explicitly; don't leave a page's heading at the old 28px/500-weight/
+  sentence-case style by omission.
 
 ## Component patterns
 
@@ -137,3 +144,7 @@ not against the old glass-surface numbers.
   Admin Users, Register/Reset Password) — Task 10 only sweeps for
   leftover hardcoded glass-era values, it does not redesign these pages'
   layouts from scratch.
+- Of those, 5 pages (Loggers, Settings, New Calibration, Certificate,
+  Admin Users) are explicitly parked here as known follow-up, not an
+  oversight — they still carry pre-redesign chrome (headings, spacing)
+  and are intentionally deferred to a later pass.

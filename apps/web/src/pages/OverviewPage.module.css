@@ -1,18 +1,19 @@
 .page {
-  padding: var(--s-6);
+  padding: var(--s-4);
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--s-6);
+  gap: var(--s-3);
   animation: fadeSlideUp 400ms var(--ease-out) both;
 }
 
 .heading {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 28px;
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--color-boardroom-navy);
   animation: staggerIn 380ms var(--ease-out) both;
 }
@@ -132,9 +133,9 @@
 
 .skeletonTile {
   background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
-  padding: var(--s-5);
+  border-right: 2px solid var(--c-border-strong);
+  border-bottom: 2px solid var(--c-border-strong);
+  padding: var(--s-2) var(--s-3);
 }
 
 .skeletonTitle {

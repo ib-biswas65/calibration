@@ -136,7 +136,7 @@
 .sparkBar {
   width: 80px;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   background: var(--c-border);

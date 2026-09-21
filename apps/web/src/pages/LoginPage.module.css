@@ -47,6 +47,7 @@
   width: 340px;
   max-width: 400px;
   padding: var(--s-8) var(--s-6);
+  justify-self: center;
   animation: scaleIn 400ms var(--ease-out) both;
   /* flex-direction: column added (not in brief's literal snippet) so the
      stacked form fields don't lay out as a row — align-items/justify-content
