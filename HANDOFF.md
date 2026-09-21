@@ -86,6 +86,19 @@ remains the authoritative source for what's next on the engineering side.
 - **Local Docker dev stack running** on this Mac (`infra/` compose,
   containers `ite-calibration-{postgres,api,web,edge}-1`, up 2+ days) with
   the real verified production dump loaded.
-- No open PRs, no unmerged feature branches (besides the untouched
-  `add-otel-instrumentation`), no worktree agents running, no code changed
-  this session.
+- No open PRs; `add-otel-instrumentation` still unclaimed.
+- (since 2026-09-21) **Direction C dense redesign in progress via
+  subagent-driven-development**, executing
+  `docs/superpowers/plans/2026-09-21-direction-c-dense-redesign-implementation-plan.md`
+  (approved from the "ITE Calibration — Redesign Mockups" canvas,
+  `https://claude.ai/artifact/4xN8SVQW3YJwSj4TJTe6cF`, row C tightened
+  twice for density). Working in worktree
+  `.claude/worktrees/direction-c-redesign` (branch
+  `worktree-direction-c-redesign`), ledger at
+  `.superpowers/sdd/2026-09-21-direction-c-dense-redesign-implementation-plan/progress.md`.
+  Task 1/12 (DESIGN.md rewrite) implemented, commit `956241c`, task review
+  in flight. If a session picks this up cold: read the ledger first, it
+  tracks which tasks are actually complete — do not re-dispatch a task the
+  ledger already marks `complete`. Real `/handoff` with `PROGRESS.md`/log
+  entries happens at Task 12, once the branch is finished and reviewed —
+  this note is a placeholder for mid-plan interruption only.
