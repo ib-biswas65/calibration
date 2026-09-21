@@ -136,7 +136,11 @@
   cursor: pointer;
   transition: background var(--transition-fast), opacity 300ms var(--ease-out);
 }
-.button:hover:not(:disabled) { background: var(--c-accent-700); }
+/* Slightly lighter than the near-black resting navy — no darker-navy token
+   exists in tokens.css (boardroom-navy/pitch-black/c-accent-900 are all
+   #0a0a0a already), so a small explicit lighten keeps hover perceptible
+   while staying consistent with the navy family instead of the old green. */
+.button:hover:not(:disabled) { background: #2a2a2a; }
 .buttonLoading { opacity: 0; pointer-events: none; }
 
 .spinnerOverlay {
