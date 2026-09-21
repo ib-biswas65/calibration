@@ -101,8 +101,6 @@
   height: 56px;
   border-bottom: 1px solid var(--c-border);
   background: var(--c-surface-strong);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: flex-end;

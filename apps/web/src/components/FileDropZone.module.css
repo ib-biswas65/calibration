@@ -8,8 +8,6 @@
   gap: var(--s-2);
   cursor: pointer;
   background: var(--c-surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: border-color 0.15s, background 0.15s;
 }
 
