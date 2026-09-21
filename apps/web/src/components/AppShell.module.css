@@ -45,13 +45,13 @@
   display: none;
   background: none;
   border: none;
-  color: rgba(255,255,255,.6);
+  color: var(--c-text-soft);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
   transition: color var(--transition-fast);
 }
-.sidebarClose:hover { color: #fff; }
+.sidebarClose:hover { color: var(--color-brand-electric); }
 
 .navItem {
   display: flex;
