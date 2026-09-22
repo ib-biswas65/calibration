@@ -84,3 +84,7 @@ def run_calibration_cmd(
     for p in written:
         typer.echo(str(p))
     typer.echo(f"Wrote {len(written)} certificate(s) to {output}")
+
+
+if __name__ == "__main__":
+    app()
