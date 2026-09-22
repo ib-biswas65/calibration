@@ -1,54 +1,72 @@
 # Handoff
 
 ## State
-`main` is at `53267f8`, clean. Zero open PRs, zero unmerged feature
+`main` is at `63c76ed`, clean. Zero open PRs, zero unmerged feature
 branches other than the still-unclaimed `origin/add-otel-instrumentation`.
 **Not yet pushed to origin.**
 
-**The Direction C dense redesign is merged into `main` and live-tested.**
-All 12 plan tasks complete and reviewed clean (see
-[logs/DAILY-2026-09-21.md](logs/DAILY-2026-09-21.md)); a final whole-branch
-review's 6 Important + 4 Minor findings were fixed in one consolidated
-pass and re-reviewed clean. `tsc`, `vitest` (15/15), and `vite build` are
-green. The local Docker `web` image was rebuilt from the merged code and
-the app was driven live with Playwright (login desktop+mobile, Overview,
-History, Run Detail table+cards, ConfirmDialog) — all confirmed correct
-(see [logs/DAILY-2026-09-22.md](logs/DAILY-2026-09-22.md)). **One parked,
+**The Direction C dense redesign is merged into `main`, live-tested, and
+its e2e suite is now working.** All 12 plan tasks complete and reviewed
+clean (see [logs/DAILY-2026-09-21.md](logs/DAILY-2026-09-21.md)); a final
+whole-branch review's 6 Important + 4 Minor findings were fixed and
+re-reviewed clean. `tsc`, `vitest` (15/15), and `vite build` are green.
+The app was driven live with Playwright against a rebuilt Docker `web`
+image — login desktop+mobile, Overview, History, Run Detail table+cards,
+ConfirmDialog all confirmed correct (see
+[logs/DAILY-2026-09-22.md](logs/DAILY-2026-09-22.md)). **One parked,
 non-blocking item remains**: `DESIGN.md` still describes `ConfirmDialog` as
 losing its border entirely, but the shipped CSS deliberately keeps a 2px
 border — a one-line doc/code mismatch, not a functional defect.
 
-**Live testing today surfaced real, pre-existing bugs unrelated to the
-redesign** (full detail in
-[logs/DAILY-2026-09-22.md](logs/DAILY-2026-09-22.md)), now being triaged
-with the user:
-1. **Fixed operationally**: DB migration `0008_add_failure_reason` had
-   never actually applied to this container's Postgres despite
-   `alembic_version` implying otherwise — every request touching
-   `logger_results` (Overview/History/Run Detail) 500'd. Ran `alembic
-   upgrade head` directly against the container to fix; not a code change.
-2. **Fixed and committed** (`53267f8`): the existing e2e suite
-   (`apps/web/e2e/*.spec.ts`) had an ambiguous `getByLabel(/password/i)`
-   locator matching both the password field and the "Show password"
-   toggle, failing all 9 specs before login could even run.
-3. **Not yet fixed**, found today, awaiting triage:
-   - `apps/api/ite_api/cli.py`'s `create-admin` silently no-ops under
-     `python -m ite_api.cli` (no `__main__` guard) — the real entry point
-     is the installed `ite-api` console script.
-   - Backend `EmailStr` validation rejects reserved TLDs (`.local`,
-     `.invalid`), including the e2e suite's own baked-in seed credential
-     `boss@ite.local`.
-   - `admin.spec.ts`: heading assertion (`/users/i`) doesn't match the
-     real "User Management" heading.
-   - `admin.spec.ts`: invite-user test never opens the invite form.
-   - `history.spec.ts`: empty-state text assertion (`/no runs/i`) doesn't
-     match the real "No calibration runs found."
-   - `history.spec.ts`: expects a Table/Cards toggle on History that only
-     exists on Run Detail.
+**Live testing on 2026-09-22 found 7 real, pre-existing bugs unrelated to
+the redesign — all now fixed and verified except one** (full detail in
+[logs/DAILY-2026-09-22.md](logs/DAILY-2026-09-22.md)):
+1. **Fixed operationally, not a commit**: DB migration
+   `0008_add_failure_reason` had never actually applied to this
+   container's Postgres despite `alembic_version` implying otherwise —
+   every request touching `logger_results` 500'd. Ran `alembic upgrade
+   head` directly against the container.
+2. **Fixed** (`53267f8`): e2e suite's ambiguous `getByLabel(/password/i)`
+   locator, failing all 9 specs before login could run.
+3. **Fixed** (`defbb01`): `admin.spec.ts` — reserved-TLD seed email, wrong
+   heading regex, invite test never opening the invite form. 3/3 pass live.
+4. **Fixed** (`b5d2ea9`): `history.spec.ts` — reserved-TLD seed email,
+   wrong empty-state text, and a Table/Cards toggle test for a feature
+   that doesn't exist on History (deleted the test, confirmed via full
+   read + grep no such feature was ever built there). 2/2 pass live.
+5. **Fixed** (`5949f23`): `auth.spec.ts`/`loggers.spec.ts` — same
+   reserved-TLD seed email. 3/3 pass live.
+6. **Fixed** (`63c76ed`): `apps/api/ite_api/cli.py`'s `create-admin`
+   silently no-op'd under `python -m ite_api.cli` — missing `if __name__
+   == "__main__":` guard. The installed `ite-api` console script worked
+   fine (its own entry point calls `app()` directly), which masked this
+   for anyone not using the raw module form.
+7. **Not fixed, flagged for follow-up** — two related findings surfaced
+   while fixing #6:
+   - `typer==0.15.1` is pinned but `click` isn't, floated to 8.5.0, and
+     breaks `--help` rendering on every CLI command (both `python -m` and
+     the installed console script). Needs a version pin or typer upgrade.
+   - The backend's `create-admin` accepts any string as `--email` (no
+     validation), while the login route requires Pydantic `EmailStr`
+     (rejects reserved TLDs like `.local`) — so a CLI-created admin can
+     exist in the DB but never log in, no signal until they try.
+     `apps/api/tests/test_cli.py::test_create_admin_inserts_user`
+     currently **passes** while creating exactly such an unusable account
+     (`boss@ite.local`) — fixing the CLI validation would break that
+     currently-green test, so the real fix needs the test updated too.
+     Judged out of scope for "add the missing guard," left as a flagged
+     finding.
 
-**The local Docker dev stack is still running** (rebuilt `web` image
-today), still with the real verified production data loaded from GH issue
-#2's 2026-09-15 snapshot. Not torn down — the user hasn't said either way.
+Full e2e suite run together: **11/12 pass**; 1 transient failure
+(`loggers.spec.ts` empty-state test, likely rate-limit/session contention
+from 12 tests logging into one account back-to-back) passed cleanly on
+isolated re-run — not chased further. All test accounts created during
+today's work were cleaned from the real DB afterward.
+
+**The local Docker dev stack is still running**, `web` image rebuilt
+2026-09-22 from merged `main`, `api`/`postgres` migrated to head. Real
+verified production data still loaded from GH issue #2's 2026-09-15
+snapshot. Not torn down — the user hasn't said either way.
 
 **New finding this session, not yet acted on**: audited the loaded historical
 calibration data against the exact signature of the `matcher.py`
@@ -90,15 +108,14 @@ The implementation plan
 remains the authoritative source for what's next on the engineering side.
 
 ## Next steps
-- (since 2026-09-22) **Triage and fix the 5 not-yet-fixed bugs listed
-  above** (CLI `__main__` guard, reserved-TLD email validation, 3 e2e
-  spec/app mismatches) — in progress with the user right now.
+- (since 2026-09-22) **Decide on the two flagged-not-fixed findings**: pin
+  `click`/upgrade `typer` to fix `--help`; decide whether/how to fix the
+  `create-admin` email-validation asymmetry (needs `test_cli.py` updated
+  alongside it).
 - (since 2026-09-22) **Push the merged `main` to origin** (currently local
   only) once the user confirms.
 - (since 2026-09-22) **Fix the parked DESIGN.md/ConfirmDialog border
-  mismatch** — one line, whenever someone next touches `DESIGN.md` (either
-  remove ConfirmDialog from the "loses its border" example list, or add an
-  explicit exception clause with the overlay-visibility reasoning).
+  mismatch** — one line, whenever someone next touches `DESIGN.md`.
 - (since 2026-09-18) **Decide how to handle the 396 questionable "pass"
   verdicts** — reprocess the 6 affected runs' reference files through the
   fixed `matcher.py` to see which actually hold up, then decide whether any
@@ -142,11 +159,13 @@ remains the authoritative source for what's next on the engineering side.
 ## In flight
 - **Local Docker dev stack running** on this Mac (`infra/` compose,
   containers `ite-calibration-{postgres,api,web,edge}-1`), `web` image
-  rebuilt today from merged `main`, `api`/`postgres` migrated to head.
-  Real verified production dump still loaded.
+  rebuilt from merged `main`, `api`/`postgres` migrated to head. Real
+  verified production dump still loaded. The `api` container's `cli.py`
+  was docker-cp'd with the `__main__`-guard fix during verification — this
+  matches the committed source (`63c76ed`) and will revert cleanly on the
+  container's next rebuild; flagging only so no one is surprised by the
+  live container having a file edit not reflected in its built image layer.
 - No open PRs; `add-otel-instrumentation` still unclaimed.
-- Merged `main` (`53267f8`) is local-only, not yet pushed to origin.
-- Worktree/branch from the redesign already cleaned up (merged and
-  removed) — no stale worktrees remain.
-- Currently analyzing the 5 not-yet-fixed bugs found during today's live
-  testing, with the user, one at a time.
+- Merged `main` (`63c76ed`) is local-only, not yet pushed to origin.
+- No stale worktrees or branches from the redesign — already cleaned up.
+- No test accounts remain in the DB — all cleaned up after verification.
