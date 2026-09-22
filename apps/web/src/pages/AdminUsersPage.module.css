@@ -66,6 +66,7 @@
   color: var(--c-text);
   outline: none;
 }
+.field select:focus { border-bottom-color: var(--color-brand-electric); }
 
 /* ── Setup URL box ────────────────────────────────────────────────── */
 .setupUrl {
@@ -225,7 +226,7 @@
   color: #fff;
   font-size: 11px;
   font-weight: 700;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   padding: 1px 7px;
   line-height: 1.6;
 }

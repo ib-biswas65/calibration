@@ -2,39 +2,42 @@
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 .sidebar {
-  background: linear-gradient(180deg, var(--color-boardroom-navy), #202226);
-  color: rgba(255,255,255,.75);
-  padding: var(--s-6) var(--s-4);
+  background: #ffffff;
+  border-right: 2px solid var(--c-border-strong);
+  color: var(--c-text);
+  padding: var(--s-3) 0;
   display: flex;
   flex-direction: column;
   animation: fadeIn 400ms var(--ease-out) both;
 }
 
-.brandBlock { margin-bottom: var(--s-8); }
+.brandBlock {
+  margin-bottom: var(--s-2);
+  padding: 0 var(--s-4) var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--c-border-strong);
+}
 
 .brand {
   font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.02em;
-  color: #fff;
-  padding: 0 var(--s-2);
+  font-weight: 900;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--c-text);
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  /* Hero landing target: slides in from left as login title exits */
   animation: staggerIn 380ms 80ms var(--ease-out) both;
 }
 .brand span { flex: 1; }
 
-.brandMark { width: 26px; height: 26px; flex-shrink: 0; }
+.brandMark { width: 22px; height: 22px; flex-shrink: 0; }
 
 .brandQuartet {
   display: flex;
   height: 3px;
-  border-radius: 2px;
   overflow: hidden;
-  margin: 8px var(--s-2) 0;
+  margin: var(--s-2) 0 0;
 }
 .brandQuartet span { flex: 1; }
 
@@ -42,35 +45,37 @@
   display: none;
   background: none;
   border: none;
-  color: rgba(255,255,255,.6);
+  color: var(--c-text-soft);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 0;
   transition: color var(--transition-fast);
 }
-.sidebarClose:hover { color: #fff; }
+.sidebarClose:hover { color: var(--color-brand-electric); }
 
 .navItem {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px var(--s-3);
-  border-radius: var(--radius-pill);
-  color: rgba(255,255,255,.6);
-  font-size: 14px;
+  gap: 8px;
+  padding: 3px var(--s-3);
+  border-left: 3px solid transparent;
+  color: var(--c-text-soft);
+  font-size: 12.5px;
   font-weight: 500;
-  margin-bottom: 2px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  margin-bottom: 1px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
   animation: staggerIn 360ms var(--ease-out) both;
 }
 .navItem svg { flex-shrink: 0; opacity: .85; }
 .navItemActive svg { opacity: 1; }
-.navItem:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
+.navItem:hover { color: var(--c-text); }
 .navItemActive {
-  background: var(--color-brand-electric);
-  color: #fff;
+  border-left-color: var(--color-brand-electric);
+  color: var(--c-text);
+  font-weight: 700;
+  background: transparent;
 }
-.navItemActive:hover { background: var(--c-accent-700); }
+.navItemActive:hover { color: var(--c-text); }
 
 /* Stagger nav items after brand */
 .sidebar a:nth-child(2)  { animation-delay: 120ms; }
@@ -87,26 +92,16 @@
   display: flex;
   flex-direction: column;
   background-color: var(--c-bg);
-  /* Ambient color pools in the brand quartet — without this, the glass
-     surfaces elsewhere read as flat gray instead of translucent. */
-  background-image:
-    radial-gradient(760px 480px at 6% 0%,    var(--ambient-green), transparent 62%),
-    radial-gradient(680px 480px at 96% 6%,   var(--ambient-blue),  transparent 60%),
-    radial-gradient(720px 560px at 74% 100%, var(--ambient-amber), transparent 62%),
-    radial-gradient(560px 460px at 12% 96%,  var(--ambient-red),   transparent 60%);
-  background-attachment: fixed;
 }
 
 .topbar {
-  height: 56px;
-  border-bottom: 1px solid var(--c-border);
-  background: var(--c-surface-strong);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  height: 36px;
+  border-bottom: 2px solid var(--c-border-strong);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 var(--s-6);
+  padding: 0 var(--s-4);
   gap: var(--s-3);
   animation: fadeIn 350ms 60ms var(--ease-out) both;
 }
@@ -121,11 +116,12 @@
 
 .logout {
   background: transparent;
-  border: 1px solid var(--c-border);
-  padding: 6px 16px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
+  border: 1px solid var(--c-border-strong);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--c-text-soft);
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
@@ -141,7 +137,7 @@
   cursor: pointer;
   color: var(--c-text-mute);
   padding: 6px;
-  border-radius: 6px;
+  border-radius: 0;
   transition: color var(--transition-fast);
   margin-right: auto;
 }
@@ -170,7 +166,6 @@
     z-index: 500;
     transform: translateX(-100%);
     transition: transform var(--transition-base);
-    box-shadow: var(--shadow-2);
     animation: none;
   }
   .sidebarOpen { transform: translateX(0); }

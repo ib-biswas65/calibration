@@ -1,94 +1,98 @@
 .page {
-  padding: var(--s-6);
+  padding: var(--s-4);
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--s-5);
+  gap: var(--s-3);
   animation: fadeSlideUp 400ms var(--ease-out) both;
 }
 
-.header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-3); }
+.header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--s-3); }
 
-.headerActions { display: flex; align-items: center; gap: var(--s-3); }
+.headerActions { display: flex; align-items: baseline; gap: var(--s-5); }
 
 .heading {
   font-family: var(--font-heading);
-  font-size: 28px;
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--color-boardroom-navy);
   margin: 0;
 }
 
 .btnPrimary {
-  background: var(--color-brand-electric);
-  color: #fff;
+  background: transparent;
+  color: var(--c-text);
   border: none;
-  border-radius: var(--radius-pill);
-  padding: 10px var(--s-5);
-  font-size: 14px;
-  font-weight: 500;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
 }
-.btnPrimary:hover { background: var(--c-accent-700); }
+.btnPrimary:hover { color: var(--color-brand-electric); }
 
-.toolbar { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
+.toolbar { display: flex; gap: var(--s-5); align-items: baseline; flex-wrap: wrap; border-bottom: 1px solid var(--c-border-strong); padding-bottom: var(--s-2); }
 
 .search {
   flex: 1;
   min-width: 200px;
-  padding: 9px 12px;
+  padding: 6px 0;
   border: none;
-  border-bottom: 1.5px solid var(--color-input-border);
-  font-size: 14px;
+  border-bottom: 1px solid var(--c-border-strong);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   background: transparent;
   color: var(--c-text);
   outline: none;
-  transition: border-bottom-color var(--transition-fast);
 }
 .search:focus { border-bottom-color: var(--color-brand-electric); }
 
 .select {
-  padding: 9px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-badge);
-  font-size: 14px;
-  background: var(--c-surface);
+  padding: 6px 0;
+  border: none;
+  border-bottom: 1px solid var(--c-border-strong);
+  font-size: 12px;
+  text-transform: uppercase;
+  background: transparent;
   color: var(--c-text);
 }
 
 /* ── Table ───────────────────────────────────────────────────────── */
 .tableWrap {
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
+  background: #ffffff;
   overflow: hidden;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .table thead tr {
-  border-bottom: 1px solid var(--c-border);
+  border-bottom: 2px solid var(--c-border-strong);
 }
 
 .table th {
   text-align: left;
-  padding: var(--s-3) var(--s-4);
-  font-size: 11px;
-  font-weight: 600;
+  padding: 0 var(--s-3) 5px 0;
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--c-text-mute);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .table td {
-  padding: var(--s-3) var(--s-4);
+  padding: 6px var(--s-3) 6px 0;
   border-bottom: 1px solid var(--c-border);
   color: var(--c-text);
   vertical-align: middle;
@@ -101,7 +105,7 @@
   transition: background var(--transition-fast);
   animation: fadeIn 320ms var(--ease-out) both;
 }
-.row:hover td { background: var(--c-accent-50); }
+.row:hover td { background: var(--color-lilac-accent); }
 
 /* Stagger first 8 rows; beyond that fade in together */
 .table tbody tr:nth-child(1)  { animation-delay:  50ms; }
@@ -132,7 +136,7 @@
 .sparkBar {
   width: 80px;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 0;
   overflow: hidden;
   display: flex;
   background: var(--c-border);
@@ -151,42 +155,45 @@
 .exportBtn {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 6px;
   background: transparent;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-pill);
-  padding: 8px 14px;
-  font-size: 13px;
+  border: none;
+  padding: 0;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--c-text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-text);
   cursor: pointer;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
 }
-.exportBtn:hover:not(:disabled) { border-color: var(--color-brand-electric); color: var(--color-brand-electric); }
-.exportBtn:disabled { opacity: .4; cursor: not-allowed; }
+.exportBtn:hover:not(:disabled) { color: var(--color-brand-electric); }
+.exportBtn:disabled { opacity: .4; cursor: not-allowed; text-decoration: none; }
 
 /* ── Date range inputs ───────────────────────────────────────────── */
 .dateLabel {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-size: 12px;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
   font-weight: 500;
+  text-transform: uppercase;
   color: var(--c-text-mute);
   white-space: nowrap;
 }
 
 .dateInput {
-  padding: 7px 10px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-badge);
-  font-size: 13px;
-  background: var(--c-surface);
+  padding: 4px 0;
+  border: none;
+  border-bottom: 1px solid var(--c-border-strong);
+  font-size: 11px;
+  background: transparent;
   color: var(--c-text);
   outline: none;
-  transition: border-color var(--transition-fast);
 }
-.dateInput:focus { border-color: var(--color-brand-electric); }
+.dateInput:focus { border-bottom-color: var(--color-brand-electric); }
 
 /* ── Sortable column headers ─────────────────────────────────────── */
 .thSort {

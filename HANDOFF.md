@@ -1,12 +1,32 @@
 # Handoff
 
 ## State
-`main` is at `ba80c48`, clean, matches origin. Zero open PRs, zero unmerged
-feature branches other than the still-unclaimed `origin/add-otel-instrumentation`.
+`main` is at the merge of the Direction C dense redesign (this commit),
+clean. Zero open PRs, zero unmerged feature branches other than the
+still-unclaimed `origin/add-otel-instrumentation`. **Not yet pushed to
+origin.**
+
+**The Direction C dense redesign is merged into `main`.** All 12 tasks of
+`docs/superpowers/plans/2026-09-21-direction-c-dense-redesign-implementation-plan.md`
+are complete and reviewed clean (3 needed one small fix round each —
+`.sidebarClose` mobile contrast, `.button` hover color, `RunDetailPage`
+`.headingInput` focus state — see
+[logs/DAILY-2026-09-21.md](logs/DAILY-2026-09-21.md) for detail). A final
+whole-branch review found 6 Important + 4 Minor cross-task drift findings
+(login form off-center, Overview page never got the dense treatment,
+mismatched loading skeleton, ConfirmDialog never restyled, inconsistent
+table borders, RunDetailPage card kept its glass-era hover-lift, plus 4
+minor leftover hardcoded values), fixed in one consolidated pass, and
+re-reviewed clean. `tsc`, `vitest` (15/15), and `vite build` are all green
+on the merged result. **One parked, non-blocking item remains**:
+`DESIGN.md` still describes `ConfirmDialog` as losing its border entirely,
+but the shipped CSS deliberately keeps a 2px border (a modal needs some
+edge against its own overlay) — a one-line doc/code mismatch, not a
+functional defect, cheap to fix whenever `DESIGN.md` is next touched.
 
 **The local Docker dev stack is still running** (2+ days), still with the
-real verified production data loaded from GH issue #2's 2026-09-15 snapshot.
-Not torn down — the user hasn't said either way.
+real verified production data loaded from GH issue #2's 2026-09-15
+snapshot. Not torn down — the user hasn't said either way.
 
 **New finding this session, not yet acted on**: audited the loaded historical
 calibration data against the exact signature of the `matcher.py`
@@ -48,6 +68,12 @@ The implementation plan
 remains the authoritative source for what's next on the engineering side.
 
 ## Next steps
+- (since 2026-09-22) **Push the merged `main` to origin** (currently local
+  only) once the user confirms — this session merged but did not push.
+- (since 2026-09-22) **Fix the parked DESIGN.md/ConfirmDialog border
+  mismatch** — one line, whenever someone next touches `DESIGN.md` (either
+  remove ConfirmDialog from the "loses its border" example list, or add an
+  explicit exception clause with the overlay-visibility reasoning).
 - (since 2026-09-18) **Decide how to handle the 396 questionable "pass"
   verdicts** — reprocess the 6 affected runs' reference files through the
   fixed `matcher.py` to see which actually hold up, then decide whether any
@@ -72,6 +98,8 @@ remains the authoritative source for what's next on the engineering side.
   Windows-session finding above might resolve some of these directly.
 
 ## Open questions
+- (since 2026-09-22) Push the merged redesign to origin now, or wait for
+  the user to review it locally first? Not yet answered.
 - (since 2026-09-18) Do the 396 fabrication-tainted "pass" verdicts need
   correction, customer notification, or certificate re-issue? Blocked on
   reprocessing the 6 runs through the fixed matcher first.
@@ -86,6 +114,7 @@ remains the authoritative source for what's next on the engineering side.
 - **Local Docker dev stack running** on this Mac (`infra/` compose,
   containers `ite-calibration-{postgres,api,web,edge}-1`, up 2+ days) with
   the real verified production dump loaded.
-- No open PRs, no unmerged feature branches (besides the untouched
-  `add-otel-instrumentation`), no worktree agents running, no code changed
-  this session.
+- No open PRs; `add-otel-instrumentation` still unclaimed.
+- Merged `main` is local-only, not yet pushed to origin.
+- Worktree `.claude/worktrees/direction-c-redesign` (branch
+  `worktree-direction-c-redesign`) still exists post-merge, pending cleanup.

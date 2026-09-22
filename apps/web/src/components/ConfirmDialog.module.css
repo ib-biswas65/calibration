@@ -11,14 +11,10 @@
 
 .dialog {
   background: var(--c-surface-strong);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-card);
+  border: 2px solid var(--c-border-strong);
   padding: var(--s-6);
   max-width: 420px;
   width: 100%;
-  box-shadow: var(--shadow-2);
   animation: scaleIn 200ms var(--ease-out) both;
 }
 
@@ -36,33 +32,48 @@
   line-height: 1.5;
 }
 
-.actions { display: flex; gap: var(--s-3); justify-content: flex-end; }
+.actions { display: flex; gap: var(--s-5); justify-content: flex-end; align-items: center; }
 
 .cancel {
   background: transparent;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-pill);
-  padding: 9px var(--s-5);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--c-text-mute);
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-text);
   cursor: pointer;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
 }
-.cancel:hover { border-color: var(--c-text-mute); color: var(--c-text); }
+.cancel:hover { color: var(--color-brand-electric); }
 
 .confirm {
-  background: var(--color-brand-electric);
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: 9px var(--s-5);
-  font-size: 14px;
-  font-weight: 500;
+  background: var(--color-boardroom-navy);
+  border: 2px solid var(--color-boardroom-navy);
+  padding: 10px var(--s-5);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #fff;
   cursor: pointer;
   transition: background var(--transition-fast);
 }
-.confirm:hover { background: var(--c-accent-700); }
+/* Stays in the navy family on hover (matches LoginPage's .button, which
+   lightens boardroom-navy to --color-medium-gray rather than jumping to
+   the brand green — the confirm action isn't the sparing-accent color). */
+.confirm:hover { background: var(--color-medium-gray); border-color: var(--color-medium-gray); }
 
-.destructive { background: var(--c-fail); }
-.destructive:hover { background: #b91c1c; }
+.destructive { background: var(--c-fail); border-color: var(--c-fail); }
+/* .destructive and .confirm are both applied to the same <button> (see
+   ConfirmDialog.tsx), and .confirm:hover's selector specificity (0,2,0)
+   beats .destructive's (0,1,0) — so .destructive:hover must repeat the
+   background/border-color explicitly or a hovered destructive button
+   inherits .confirm:hover's navy-family color instead of staying red.
+   --c-fail (#ad2823) has no darker-hover token in tokens.css (unlike
+   --c-accent-700 for the brand green), so filter avoids inventing a raw,
+   unaudited hex the way the old `#b91c1c` did. */
+.destructive:hover { background: var(--c-fail); border-color: var(--c-fail); filter: brightness(0.85); }
