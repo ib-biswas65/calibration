@@ -3,12 +3,11 @@
 import io
 import logging
 import re
+import unicodedata
 import uuid
 import zipfile
 from datetime import UTC, date, datetime
 from pathlib import Path
-
-_log = logging.getLogger(__name__)
 
 from fastapi import (
     APIRouter,
@@ -21,10 +20,9 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse, StreamingResponse
-import unicodedata
-
 from pydantic import BaseModel, field_validator
-from sqlalchemy import case, delete, func, select, update as sql_update
+from sqlalchemy import case, delete, func, select
+from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from ite_api.audit import write_audit
@@ -43,6 +41,8 @@ from ite_api.db.models.calibration import (
 )
 from ite_api.db.session import get_session
 from ite_api.storage import save_file
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -1026,6 +1026,7 @@ def correct_deviation(
     if cert_path and cert_path.exists():
         try:
             from docx import Document
+
             from ite_api.calibration.docx_filler import fill_results_table
 
             doc = Document(str(cert_path))
@@ -1072,8 +1073,8 @@ def _regenerate_certificate(
     settings,
     db: Session,
 ) -> None:
-    from ite_api.calibration.engine import RunConfig, SetpointWindow, run_one_logger
     from ite_api.calibration.cal_loader import load_workbook
+    from ite_api.calibration.engine import RunConfig, SetpointWindow, run_one_logger
     from ite_api.calibration.ref_loader import combine_refs, load_ref_auto
 
     ref_files = db.scalars(select(RunReferenceFile).where(RunReferenceFile.run_id == run.id)).all()
