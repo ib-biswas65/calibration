@@ -8,7 +8,7 @@ test("admin can log in, see overview, and log out", async ({ page }) => {
   await expect(page.getByText(/sign in to continue/i)).toBeVisible();
 
   await page.getByLabel(/email/i).fill(ADMIN_EMAIL);
-  await page.getByLabel(/password/i).fill(ADMIN_PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: /sign in/i }).click();
 
   await expect(page).toHaveURL("/");

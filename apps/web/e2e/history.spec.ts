@@ -6,7 +6,7 @@ const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "hunter2-very-long-password";
 test.beforeEach(async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel(/email/i).fill(EMAIL);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: /sign in/i }).click();
   await expect(page).toHaveURL("/");
 });
