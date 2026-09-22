@@ -105,11 +105,13 @@ not against the old glass-surface numbers.
   declaration in the codebase is deleted (see Task 3). Surfaces are flat
   `#ffffff`.
 - **Structural rules over cards**: a "card" in the old system (StatTile,
-  DataTable wrapper, ConfirmDialog) loses its border-radius, shadow, and
-  independent border in favor of shared 1–2px rules with its neighbors —
-  e.g. the Overview stat tiles share a top+left border on the grid
-  container and each cell adds only its own right+bottom edge, so
-  adjacent tiles don't double up their border.
+  DataTable wrapper) loses its border-radius, shadow, and independent
+  border in favor of shared 1–2px rules with its neighbors — e.g. the
+  Overview stat tiles share a top+left border on the grid container and
+  each cell adds only its own right+bottom edge, so adjacent tiles don't
+  double up their border. **Exception**: ConfirmDialog keeps a flat 2px
+  border because a modal has no neighbor to share a structural rule with
+  and needs the edge to stay visible against its own overlay.
 - **Status pills**: no more dot + tinted badge. Verdicts/statuses render
   as plain uppercase `--font-mono` text in the semantic color (pass
   green, fail red, warn amber, info blue), no background fill, no
