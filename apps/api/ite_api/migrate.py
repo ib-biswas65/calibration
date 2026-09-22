@@ -13,12 +13,12 @@ the app kept serving traffic against the stale schema.
 
 import logging
 
-from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 
+from alembic import command
 from ite_api.config import get_settings
 
 _log = logging.getLogger(__name__)
