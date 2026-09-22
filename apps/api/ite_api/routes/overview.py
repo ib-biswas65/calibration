@@ -126,10 +126,10 @@ def get_overview(
     due_soon_loggers = db.scalars(
         select(Logger)
         .where(
-            Logger.next_due_at != None,
+            Logger.next_due_at != None,  # noqa: E711
             Logger.next_due_at >= today,
             Logger.next_due_at <= due_cutoff,
-        )  # noqa: E711
+        )
         .order_by(Logger.next_due_at)
         .limit(5)
     ).all()

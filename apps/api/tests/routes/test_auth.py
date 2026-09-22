@@ -151,7 +151,6 @@ def test_reset_password_rejects_short_password(client, db_session):
 
 
 def test_reset_password_rejects_used_token(client, db_session):
-    from datetime import timezone
     from ite_api.db.models import PasswordReset
 
     u = _make_user(db_session, email="used@example.com", password="old-password-12")
@@ -160,7 +159,7 @@ def test_reset_password_rejects_used_token(client, db_session):
         user_id=u.id,
         token_hash=hash_refresh_token(raw),
         expires_at=datetime.now(UTC) + timedelta(hours=24),
-        used_at=datetime.now(timezone.utc),
+        used_at=datetime.now(UTC),
     )
     db_session.add(pr)
     db_session.commit()
