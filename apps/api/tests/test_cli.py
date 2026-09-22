@@ -18,7 +18,7 @@ def test_create_admin_inserts_user(engine, monkeypatch, postgres_url):
         [
             "create-admin",
             "--email",
-            "boss@ite.local",
+            "boss@example.com",
             "--full-name",
             "Boss",
             "--password",
@@ -28,7 +28,7 @@ def test_create_admin_inserts_user(engine, monkeypatch, postgres_url):
     assert result.exit_code == 0, result.output
     SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with SessionLocal() as s:
-        u = s.query(User).filter_by(email="boss@ite.local").one()
+        u = s.query(User).filter_by(email="boss@example.com").one()
         assert u.role == "admin"
         assert u.password_hash.startswith("$argon2id$")
 
@@ -48,3 +48,21 @@ def test_create_admin_rejects_short_password():
         ],
     )
     assert result.exit_code != 0
+
+
+def test_create_admin_rejects_invalid_email():
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_app,
+        [
+            "create-admin",
+            "--email",
+            "boss@ite.local",
+            "--full-name",
+            "Boss",
+            "--password",
+            "hunter2-long-enough",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "invalid email" in result.output.lower()

@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
+from pydantic import EmailStr, TypeAdapter, ValidationError
 
 from ite_api.auth.passwords import hash_password
 from ite_api.db import session as db_session_mod
@@ -24,6 +25,10 @@ def create_admin(
 ) -> None:
     if len(password) < 12:
         raise typer.BadParameter("password must be at least 12 characters")
+    try:
+        TypeAdapter(EmailStr).validate_python(email)
+    except ValidationError as exc:
+        raise typer.BadParameter(f"invalid email address: {email}") from exc
     db_session_mod._init()
     SessionLocal = db_session_mod._SessionLocal
     assert SessionLocal is not None
