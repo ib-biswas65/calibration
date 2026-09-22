@@ -50,3 +50,123 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  e2e:
+    name: e2e — playwright
+    runs-on: ubuntu-latest
+    needs: web
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ite
+          POSTGRES_PASSWORD: ite
+          POSTGRES_DB: ite
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ite -d ite"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      ITE_DATABASE_URL: postgresql+psycopg://ite:ite@localhost:5432/ite
+      ITE_JWT_SECRET: ci-test-secret-not-real
+      ITE_ALLOWED_ORIGINS: http://localhost:5173
+      ITE_DATA_DIR: /var/lib/ite-calibration/data
+      E2E_ADMIN_EMAIL: boss@example.com
+      E2E_ADMIN_PASSWORD: hunter2-very-long-password
+      BASE_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      # The API's migration step resolves its alembic.ini at the fixed path
+      # /app/alembic.ini, so it only works inside the built image (WORKDIR
+      # /app), not as a bare `pip install` + `uvicorn` process on the runner.
+      # Building and running the real Dockerfile here also exercises the
+      # actual production startup path instead of a CI-only approximation.
+      - name: Build API image
+        run: docker build -t ite-api:ci apps/api
+
+      # --network host lets the container reach the postgres service, which
+      # GitHub Actions publishes on the runner's localhost.
+      - name: Start API container
+        run: |
+          docker run -d --name ite-api --network host \
+            -e ITE_DATABASE_URL="$ITE_DATABASE_URL" \
+            -e ITE_JWT_SECRET="$ITE_JWT_SECRET" \
+            -e ITE_ALLOWED_ORIGINS="$ITE_ALLOWED_ORIGINS" \
+            -e ITE_DATA_DIR="$ITE_DATA_DIR" \
+            -e WEB_CONCURRENCY=1 \
+            ite-api:ci
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/api/health >/dev/null; then
+              echo "API is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API never became healthy"
+          docker logs ite-api || true
+          exit 1
+
+      - name: Seed admin user
+        run: |
+          docker exec ite-api python -m ite_api.cli create-admin \
+            --email "$E2E_ADMIN_EMAIL" \
+            --full-name "E2E Admin" \
+            --password "$E2E_ADMIN_PASSWORD"
+
+      - name: Install web deps
+        working-directory: apps/web
+        run: npm ci || npm install
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      # `npm run dev` (not a built+served bundle) because vite.config.ts's
+      # dev-server proxy already forwards /api to localhost:8000 — a static
+      # preview server has no such proxy configured, and this suite is
+      # scoped to CI-only, no changes under apps/web.
+      - name: Start frontend dev server
+        working-directory: apps/web
+        run: nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/web-e2e.log 2>&1 &
+
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5173 >/dev/null; then
+              echo "web is up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "web never became reachable"
+          cat /tmp/web-e2e.log || true
+          exit 1
+
+      - name: Run Playwright e2e suite
+        working-directory: apps/web
+        run: npx playwright test --reporter=html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Dump API logs on failure
+        if: failure()
+        run: docker logs ite-api || true
