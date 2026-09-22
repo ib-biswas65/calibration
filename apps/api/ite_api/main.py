@@ -44,20 +44,13 @@ def _recover_stuck_runs() -> None:
             _log.warning("Recovered %d stuck processing run(s) → 'failed'", result.rowcount)
 
 
-def _run_migrations() -> None:
-    """Apply any pending Alembic migrations on startup."""
-    from alembic import command
-    from alembic.config import Config
-
-    cfg = Config("/app/alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", get_settings().database_url)
-    command.upgrade(cfg, "head")
-    _log.info("Database migrations applied.")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _run_migrations()
+    # Migrations are run once, before any uvicorn worker starts, by
+    # docker-entrypoint.sh (python -m ite_api.migrate). They must NOT run
+    # here: this lifespan hook fires once per worker process, and running
+    # `alembic upgrade head` per worker races the same DDL with no locking.
+    # See ite_api/migrate.py for the migration runner and its failure mode.
     _recover_stuck_runs()
     yield
 
