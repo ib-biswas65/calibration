@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL ?? "boss@ite.local";
+const EMAIL = process.env.E2E_ADMIN_EMAIL ?? "boss@example.com";
 const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "hunter2-very-long-password";
 
 test.beforeEach(async ({ page }) => {

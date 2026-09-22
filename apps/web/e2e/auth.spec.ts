@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "boss@ite.local";
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "boss@example.com";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "hunter2-very-long-password";
 
 test("admin can log in, see overview, and log out", async ({ page }) => {
